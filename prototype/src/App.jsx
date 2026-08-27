@@ -214,6 +214,31 @@ export function App() {
     }
   };
 
+  const deleteAsset = async (assetId) => {
+    if (!window.confirm('Delete this asset?')) {
+      return;
+    }
+    setAssetError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/assets/${assetId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          setAuthUser(null);
+          setCurrentPage('auth');
+        }
+        throw new Error(payload.error || 'Failed to delete asset');
+      }
+      setAssets((items) => items.filter((asset) => asset.id !== assetId));
+      setAssetTotal((count) => Math.max(0, count - 1));
+    } catch (error) {
+      setAssetError(error.message);
+    }
+  };
+
   useEffect(() => {
     if (!generationJob || generationJob.status === 'completed' || generationJob.status === 'failed') {
       return undefined;
@@ -374,7 +399,14 @@ export function App() {
           onSubmit={submitAuth}
         />
       ) : currentPage === 'assets' ? (
-        <AssetsPage assets={assets} total={assetTotal} loading={assetsLoading} error={assetError} onRefresh={loadAssets} />
+        <AssetsPage
+          assets={assets}
+          total={assetTotal}
+          loading={assetsLoading}
+          error={assetError}
+          onRefresh={loadAssets}
+          onDeleteAsset={deleteAsset}
+        />
       ) : (
       <>
         <section className="workspace-grid">
@@ -667,13 +699,17 @@ function AuthPage({
   );
 }
 
-function AssetsPage({ assets, total, loading, error, onRefresh }) {
+function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset }) {
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? assets[0];
   const animeCount = assets.filter((asset) => asset.style_id === 'anime_bishoujo').length;
   const realisticCount = assets.filter((asset) => asset.style_id === 'ultimate_bishoujo').length;
 
   useEffect(() => {
+    if (selectedAssetId && !assets.some((asset) => asset.id === selectedAssetId)) {
+      setSelectedAssetId(assets[0]?.id ?? '');
+      return;
+    }
     if (!selectedAssetId && assets[0]) {
       setSelectedAssetId(assets[0].id);
     }
@@ -746,21 +782,30 @@ function AssetsPage({ assets, total, loading, error, onRefresh }) {
           ) : assets.length ? (
             <div className="asset-grid">
               {assets.map((asset) => (
-                <button
+                <article
                   key={asset.id}
-                  type="button"
                   className={`asset-card ${selectedAsset?.id === asset.id ? 'is-active' : ''}`}
-                  onClick={() => setSelectedAssetId(asset.id)}
                 >
-                  <img src={imageURL(asset.url)} alt="" />
-                  <div className="asset-card-body">
-                    <div>
-                      <h3>{asset.prompt || 'Generated image'}</h3>
-                      <span>{asset.style_name} · {asset.aspect_ratio} · {formatDate(asset.created_at)}</span>
+                  <button type="button" className="asset-card-main" onClick={() => setSelectedAssetId(asset.id)}>
+                    <img src={imageURL(asset.url)} alt="" />
+                    <div className="asset-card-body">
+                      <div>
+                        <h3>{asset.prompt || 'Generated image'}</h3>
+                        <span>{asset.style_name} · {asset.aspect_ratio} · {formatDate(asset.created_at)}</span>
+                      </div>
+                      <strong>{asset.status}</strong>
                     </div>
-                    <strong>{asset.status}</strong>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    className="asset-delete-icon"
+                    title="Delete"
+                    aria-label="Delete asset"
+                    onClick={() => onDeleteAsset(asset.id)}
+                  >
+                    ×
+                  </button>
+                </article>
               ))}
             </div>
           ) : (

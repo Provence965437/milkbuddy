@@ -89,6 +89,30 @@ func (r *R2) Store(ctx context.Context, object Object) (StoredObject, error) {
 	}, nil
 }
 
+func (r *R2) Delete(ctx context.Context, key string) error {
+	if strings.TrimSpace(key) == "" {
+		return nil
+	}
+
+	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com/%s/%s", r.accountID, url.PathEscape(r.bucket), escapeObjectKey(key))
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	r.sign(req, nil)
+
+	resp, err := r.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("r2 delete object returned %s: %s", resp.Status, string(body))
+	}
+	return nil
+}
+
 func (r *R2) sign(req *http.Request, payload []byte) {
 	now := time.Now().UTC()
 	date := now.Format("20060102")

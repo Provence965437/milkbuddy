@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -19,15 +20,21 @@ type Server struct {
 	auth        *auth.Service
 	generations *generation.Service
 	assets      *assets.Repository
+	objects     objectDeleter
 	corsOrigin  string
 	mux         *http.ServeMux
 }
 
-func NewServer(authService *auth.Service, generations *generation.Service, assetRepo *assets.Repository, corsOrigin string) *Server {
+type objectDeleter interface {
+	Delete(context.Context, string) error
+}
+
+func NewServer(authService *auth.Service, generations *generation.Service, assetRepo *assets.Repository, objects objectDeleter, corsOrigin string) *Server {
 	s := &Server{
 		auth:        authService,
 		generations: generations,
 		assets:      assetRepo,
+		objects:     objects,
 		corsOrigin:  corsOrigin,
 		mux:         http.NewServeMux(),
 	}
@@ -47,6 +54,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/auth/me", s.me)
 	s.mux.HandleFunc("GET /api/assets", s.listAssets)
 	s.mux.HandleFunc("GET /api/assets/{id}", s.getAsset)
+	s.mux.HandleFunc("DELETE /api/assets/{id}", s.deleteAsset)
 	s.mux.HandleFunc("GET /api/assets/{id}/download", s.downloadAsset)
 	s.mux.HandleFunc("POST /api/generations", s.createGeneration)
 	s.mux.HandleFunc("GET /api/generations/{id}", s.getGeneration)
@@ -163,6 +171,40 @@ func (s *Server) getAsset(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, asset)
 }
 
+func (s *Server) deleteAsset(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAuth(w, r); !ok {
+		return
+	}
+
+	asset, err := s.assets.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		if errors.Is(err, assets.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "asset not found")
+			return
+		}
+		slog.Warn("get asset for delete failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to get asset")
+		return
+	}
+	if s.objects != nil && asset.StorageKey != "" {
+		if err := s.objects.Delete(r.Context(), asset.StorageKey); err != nil {
+			slog.Warn("delete stored asset failed", "asset_id", asset.ID, "storage_key", asset.StorageKey, "error", err)
+			writeError(w, http.StatusBadGateway, "failed to delete stored asset")
+			return
+		}
+	}
+	if err := s.assets.Delete(r.Context(), asset.ID); err != nil {
+		if errors.Is(err, assets.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "asset not found")
+			return
+		}
+		slog.Warn("delete asset record failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to delete asset")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.requireAuth(w, r); !ok {
 		return
@@ -261,7 +303,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 		if r.Method == http.MethodOptions {
