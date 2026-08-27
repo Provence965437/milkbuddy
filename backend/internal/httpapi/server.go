@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -46,6 +47,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/auth/me", s.me)
 	s.mux.HandleFunc("GET /api/assets", s.listAssets)
 	s.mux.HandleFunc("GET /api/assets/{id}", s.getAsset)
+	s.mux.HandleFunc("GET /api/assets/{id}/download", s.downloadAsset)
 	s.mux.HandleFunc("POST /api/generations", s.createGeneration)
 	s.mux.HandleFunc("GET /api/generations/{id}", s.getGeneration)
 	s.mux.HandleFunc("GET /api/generations/{id}/images/{index}", s.getGenerationImage)
@@ -159,6 +161,44 @@ func (s *Server) getAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, asset)
+}
+
+func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requireAuth(w, r); !ok {
+		return
+	}
+
+	asset, err := s.assets.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		if errors.Is(err, assets.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "asset not found")
+			return
+		}
+		slog.Warn("get asset for download failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to get asset")
+		return
+	}
+
+	resp, err := http.Get(asset.URL)
+	if err != nil {
+		slog.Warn("download remote asset failed", "error", err)
+		writeError(w, http.StatusBadGateway, "failed to download asset")
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		writeError(w, http.StatusBadGateway, "asset storage returned "+resp.Status)
+		return
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", `attachment; filename="milkbuddy-asset.png"`)
+	w.Header().Set("Cache-Control", "private, max-age=300")
+	_, _ = io.Copy(w, resp.Body)
 }
 
 func (s *Server) getGeneration(w http.ResponseWriter, r *http.Request) {

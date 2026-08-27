@@ -775,7 +775,17 @@ function AssetsPage({ assets, total, loading, error, onRefresh }) {
           <span className="eyebrow">Selected Asset</span>
           {selectedAsset ? (
             <>
-              <img src={imageURL(selectedAsset.url)} alt="" />
+              <div className="asset-preview">
+                <img src={imageURL(selectedAsset.url)} alt="" />
+                <a
+                  className="asset-download-icon"
+                  href={`${API_BASE_URL}/api/assets/${selectedAsset.id}/download`}
+                  title="Download"
+                  aria-label="Download asset"
+                >
+                  ↓
+                </a>
+              </div>
               <h2>{selectedAsset.prompt || 'Generated image'}</h2>
               <p>{selectedAsset.storage_key ? `R2 object: ${selectedAsset.storage_key}` : 'This asset is stored in the database and available for reuse.'}</p>
               <div className="asset-meta-list">
@@ -784,10 +794,6 @@ function AssetsPage({ assets, total, loading, error, onRefresh }) {
                 <span>Size <strong>{selectedAsset.width}x{selectedAsset.height}</strong></span>
                 <span>Seed <strong>{selectedAsset.seed}</strong></span>
                 <span>Created <strong>{formatDate(selectedAsset.created_at)}</strong></span>
-              </div>
-              <div className="asset-actions">
-                <button type="button">Use as reference</button>
-                <a href={imageURL(selectedAsset.url)} download>Download</a>
               </div>
             </>
           ) : (

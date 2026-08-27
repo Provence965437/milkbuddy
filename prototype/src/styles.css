@@ -975,12 +975,39 @@ select {
   align-content: start;
 }
 
-.asset-detail img {
+.asset-preview {
+  position: relative;
+}
+
+.asset-preview img {
   width: 100%;
   height: 220px;
   object-fit: cover;
   border-radius: 18px;
   border: 1px solid rgba(244, 232, 213, 0.08);
+}
+
+.asset-download-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(244, 232, 213, 0.18);
+  border-radius: 999px;
+  background: rgba(13, 13, 15, 0.72);
+  color: #fff2df;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 700;
+  backdrop-filter: blur(12px);
+}
+
+.asset-download-icon:hover {
+  border-color: rgba(207, 162, 131, 0.7);
+  background: rgba(194, 73, 61, 0.72);
 }
 
 .asset-detail h2 {
@@ -1011,29 +1038,6 @@ select {
 
 .asset-meta-list strong {
   color: #fff2df;
-}
-
-.asset-actions {
-  display: grid;
-  gap: 10px;
-}
-
-.asset-actions button,
-.asset-actions a {
-  min-height: 46px;
-  border: 1px solid rgba(244, 232, 213, 0.09);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  color: #f2e7d7;
-  display: grid;
-  place-items: center;
-  text-decoration: none;
-}
-
-.asset-actions button:first-child {
-  border: 0;
-  background: linear-gradient(90deg, #a42721, #c2493d);
-  color: #fff;
 }
 
 .asset-error {
@@ -1360,7 +1364,7 @@ select {
     width: fit-content;
   }
 
-  .asset-detail img {
+  .asset-preview img {
     height: auto;
     aspect-ratio: 4 / 3;
   }
