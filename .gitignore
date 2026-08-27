@@ -1,0 +1,6 @@
+.env
+backend/.env
+backend/data/
+prototype/node_modules/
+prototype/dist/
+backend/tmp/
