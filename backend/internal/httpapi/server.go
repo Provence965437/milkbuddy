@@ -189,8 +189,6 @@ func (s *Server) deleteAsset(w http.ResponseWriter, r *http.Request) {
 	if s.objects != nil && asset.StorageKey != "" {
 		if err := s.objects.Delete(r.Context(), asset.StorageKey); err != nil {
 			slog.Warn("delete stored asset failed", "asset_id", asset.ID, "storage_key", asset.StorageKey, "error", err)
-			writeError(w, http.StatusBadGateway, "failed to delete stored asset")
-			return
 		}
 	}
 	if err := s.assets.Delete(r.Context(), asset.ID); err != nil {

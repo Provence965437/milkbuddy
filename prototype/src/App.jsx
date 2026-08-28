@@ -91,6 +91,7 @@ export function App() {
   const [assetTotal, setAssetTotal] = useState(0);
   const [assetError, setAssetError] = useState('');
   const [assetsLoading, setAssetsLoading] = useState(false);
+  const [deletingAssetId, setDeletingAssetId] = useState('');
   const recentImages = assets.length ? assets.map((asset) => imageURL(asset.url)) : timelineCards;
 
   const loadAssets = async () => {
@@ -215,16 +216,17 @@ export function App() {
   };
 
   const deleteAsset = async (assetId) => {
-    if (!window.confirm('Delete this asset?')) {
+    if (deletingAssetId || !window.confirm('Delete this asset?')) {
       return;
     }
     setAssetError('');
+    setDeletingAssetId(assetId);
     try {
       const response = await fetch(`${API_BASE_URL}/api/assets/${assetId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (response.status === 401) {
           setAuthUser(null);
@@ -234,8 +236,11 @@ export function App() {
       }
       setAssets((items) => items.filter((asset) => asset.id !== assetId));
       setAssetTotal((count) => Math.max(0, count - 1));
+      loadAssets();
     } catch (error) {
       setAssetError(error.message);
+    } finally {
+      setDeletingAssetId('');
     }
   };
 
@@ -406,6 +411,7 @@ export function App() {
           error={assetError}
           onRefresh={loadAssets}
           onDeleteAsset={deleteAsset}
+          deletingAssetId={deletingAssetId}
         />
       ) : (
       <>
@@ -699,7 +705,7 @@ function AuthPage({
   );
 }
 
-function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset }) {
+function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, deletingAssetId }) {
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? assets[0];
   const animeCount = assets.filter((asset) => asset.style_id === 'anime_bishoujo').length;
@@ -798,12 +804,17 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset })
                   </button>
                   <button
                     type="button"
-                    className="asset-delete-icon"
-                    title="Delete"
-                    aria-label="Delete asset"
-                    onClick={() => onDeleteAsset(asset.id)}
+                    className={`asset-delete-icon ${deletingAssetId === asset.id ? 'is-deleting' : ''}`}
+                    title={deletingAssetId === asset.id ? 'Deleting' : 'Delete'}
+                    aria-label={deletingAssetId === asset.id ? 'Deleting asset' : 'Delete asset'}
+                    disabled={deletingAssetId === asset.id}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onDeleteAsset(asset.id);
+                    }}
                   >
-                    ×
+                    {deletingAssetId === asset.id ? '...' : '×'}
                   </button>
                 </article>
               ))}
