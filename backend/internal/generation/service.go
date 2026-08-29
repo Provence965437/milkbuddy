@@ -102,6 +102,60 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Job, error) {
 	return job, nil
 }
 
+func (s *Service) CreateImageToImage(ctx context.Context, req ImageToImageRequest) (*Job, error) {
+	req.ImageCount = 1
+	params, err := normalize(req.CreateRequest)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.ReferenceData) == 0 {
+		return nil, errors.New("reference image is required")
+	}
+	if strings.TrimSpace(req.ReferenceFilename) == "" {
+		req.ReferenceFilename = "reference.png"
+	}
+	params.Denoise = 1
+
+	uploaded, err := s.comfy.UploadImage(ctx, comfyUploadName(req.ReferenceFilename), req.ReferenceData)
+	if err != nil {
+		return nil, err
+	}
+
+	workflow, err := s.template.BuildImageToImage(req.CreateRequest, params, uploaded.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	id := newID()
+	now := time.Now().UTC()
+	job := &Job{
+		ID:        id,
+		Status:    StatusQueued,
+		Prompt:    req.Prompt,
+		Params:    params,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	s.mu.Lock()
+	s.jobs[id] = job
+	s.mu.Unlock()
+
+	resp, err := s.comfy.SubmitPrompt(ctx, workflow, "milkbuddy-img2img-"+id)
+	if err != nil {
+		s.markFailed(id, err)
+		return nil, err
+	}
+
+	s.mu.Lock()
+	job.PromptID = resp.PromptID
+	job.Status = StatusRunning
+	job.UpdatedAt = time.Now().UTC()
+	s.mu.Unlock()
+
+	return job, nil
+}
+
 func (s *Service) Get(ctx context.Context, id string) (*Job, error) {
 	s.mu.RLock()
 	job, ok := s.jobs[id]
@@ -208,6 +262,17 @@ func normalize(req CreateRequest) (JobParams, error) {
 	}, nil
 }
 
+func CreditCost(req CreateRequest) (int, error) {
+	count := req.ImageCount
+	if count == 0 {
+		count = 1
+	}
+	if count < 1 || count > 4 {
+		return 0, errors.New("image_count must be between 1 and 4")
+	}
+	return count * CreditsPerImage, nil
+}
+
 func dimensions(ratio string) (int, int) {
 	switch ratio {
 	case "3:2":
@@ -299,6 +364,14 @@ func objectKey(jobID string, index int, filename string) string {
 		ext = ".png"
 	}
 	return fmt.Sprintf("generations/%s/%02d%s", jobID, index+1, ext)
+}
+
+func comfyUploadName(filename string) string {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		ext = ".png"
+	}
+	return "milkbuddy-reference-" + newID() + ext
 }
 
 func newID() string {

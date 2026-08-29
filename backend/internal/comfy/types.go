@@ -6,6 +6,12 @@ type ImageRef struct {
 	Type      string `json:"type"`
 }
 
+type UploadImageResponse struct {
+	Name      string `json:"name"`
+	Subfolder string `json:"subfolder"`
+	Type      string `json:"type"`
+}
+
 type SubmitResponse struct {
 	PromptID   string                 `json:"prompt_id"`
 	Number     int                    `json:"number"`

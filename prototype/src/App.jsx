@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
-  (window.location.port === '4173' ? `http://${window.location.hostname || '127.0.0.1'}:8080` : '');
+  (['4173', '5173'].includes(window.location.port) ? `http://${window.location.hostname || '127.0.0.1'}:8080` : '');
 
 function imageURL(value) {
   if (!value) {
@@ -75,6 +75,7 @@ export function App() {
   const [authPasswordConfirm, setAuthPasswordConfirm] = useState('');
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [generationMode, setGenerationMode] = useState('text-to-image');
   const [activePack, setActivePack] = useState(stylePacks[0].id);
   const [activeSetId, setActiveSetId] = useState(resultSets[0].id);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -92,6 +93,8 @@ export function App() {
   const [assetError, setAssetError] = useState('');
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [deletingAssetId, setDeletingAssetId] = useState('');
+  const [referenceImage, setReferenceImage] = useState(null);
+  const [referenceImagePreview, setReferenceImagePreview] = useState('');
   const recentImages = assets.length ? assets.map((asset) => imageURL(asset.url)) : timelineCards;
 
   const loadAssets = async () => {
@@ -131,12 +134,51 @@ export function App() {
       : [];
   const isGenerating = generationJob?.status === 'queued' || generationJob?.status === 'running';
   const hasResults = activeImages.length > 0;
+  const effectiveImageCount = generationMode === 'image-to-image' ? 1 : Number(imageCount);
   const loadingSlots = Array.from({ length: pendingImageCount }, (_, index) => index);
 
   const createGeneration = async () => {
     setGenerationError('');
     setSelectedImageIndex(0);
-    setPendingImageCount(Number(imageCount));
+    setPendingImageCount(effectiveImageCount);
+    if (generationMode === 'image-to-image') {
+      if (!referenceImage) {
+        setGenerationError('Upload a reference image before generating.');
+        return;
+      }
+      try {
+        const form = new FormData();
+        form.append('prompt', prompt);
+        form.append('aspect_ratio', aspectRatio);
+        form.append('quality', quality);
+        form.append('image_count', '1');
+        form.append('seed', seed === 'Random' ? '0' : seed);
+        form.append('denoise', '0.55');
+        form.append('reference_image', referenceImage);
+
+        const response = await fetch(`${API_BASE_URL}/api/generations/image-to-image`, {
+          method: 'POST',
+          credentials: 'include',
+          body: form,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          if (response.status === 401) {
+            setAuthUser(null);
+            setCurrentPage('auth');
+          }
+          throw new Error(payload.error || 'Failed to create image-to-image generation');
+        }
+        setGenerationJob(payload);
+        if (typeof payload.credits_remaining === 'number') {
+          setAuthUser((user) => (user ? { ...user, credits: payload.credits_remaining } : user));
+        }
+      } catch (error) {
+        setGenerationError(error.message);
+        setGenerationJob(null);
+      }
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE_URL}/api/generations`, {
         method: 'POST',
@@ -160,10 +202,26 @@ export function App() {
         throw new Error(payload.error || 'Failed to create generation');
       }
       setGenerationJob(payload);
+      if (typeof payload.credits_remaining === 'number') {
+        setAuthUser((user) => (user ? { ...user, credits: payload.credits_remaining } : user));
+      }
     } catch (error) {
       setGenerationError(error.message);
       setGenerationJob(null);
     }
+  };
+
+  const handleReferenceImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    setReferenceImage(file);
+    if (referenceImagePreview) {
+      URL.revokeObjectURL(referenceImagePreview);
+    }
+    setReferenceImagePreview(URL.createObjectURL(file));
+    setGenerationError('');
   };
 
   const submitAuth = async (event) => {
@@ -304,6 +362,14 @@ export function App() {
     }
   }, [authUser]);
 
+  useEffect(() => {
+    return () => {
+      if (referenceImagePreview) {
+        URL.revokeObjectURL(referenceImagePreview);
+      }
+    };
+  }, [referenceImagePreview]);
+
   if (!authChecked) {
     return (
       <main className="app-shell">
@@ -322,31 +388,33 @@ export function App() {
       <header className="topbar">
         <div className="brand-block">
           <div className="brand-mark">MilkBuddy</div>
-          <div className="brand-subtitle">Creative Image Workspace</div>
+          <div className="brand-subtitle">Creative Image Free</div>
         </div>
 
         <div className="status-strip">
           {authUser ? (
-            <nav className="top-nav" aria-label="Primary">
-            <button
-              type="button"
-              className={currentPage === 'workspace' ? 'is-active' : ''}
-              onClick={() => setCurrentPage('workspace')}
-            >
-              Workspace
-            </button>
-            <button
-              type="button"
-              className={currentPage === 'assets' ? 'is-active' : ''}
-              onClick={() => setCurrentPage('assets')}
-            >
-              资产
-            </button>
+            <nav className={`top-nav ${currentPage === 'assets' ? 'is-assets-page' : ''}`} aria-label="Primary">
+              <span className="top-nav-indicator" aria-hidden="true" />
+              <button
+                type="button"
+                className={currentPage === 'workspace' ? 'is-active' : ''}
+                onClick={() => setCurrentPage('workspace')}
+              >
+                Workspace
+              </button>
+              <button
+                type="button"
+                className={currentPage === 'assets' ? 'is-active' : ''}
+                onClick={() => setCurrentPage('assets')}
+              >
+                资产
+              </button>
             </nav>
           ) : null}
           <div className="status-card">
-            <span className="picker-label">Credits</span>
-            <strong>2,450</strong>
+            <span className="credit-orb" aria-hidden="true" />
+            <span className="credit-label">Credits</span>
+            <strong>{authUser?.credits ?? 0}</strong>
           </div>
           {authUser ? (
             <div className="account-menu">
@@ -418,14 +486,30 @@ export function App() {
         <section className="workspace-grid">
         <aside className="left-rail panel">
           <div className="panel-heading">
-            <h2>Styles</h2>
-            <button type="button" className="ghost-link">
-              Browse all
+            <h2>Create Mode</h2>
+          </div>
+
+          <div className={`mode-switch ${generationMode === 'image-to-image' ? 'is-image-mode' : ''}`} aria-label="Generation mode">
+            <span className="mode-switch-indicator" aria-hidden="true" />
+            <button
+              type="button"
+              className={generationMode === 'text-to-image' ? 'is-active' : ''}
+              onClick={() => setGenerationMode('text-to-image')}
+            >
+              文生图
+            </button>
+            <button
+              type="button"
+              className={generationMode === 'image-to-image' ? 'is-active' : ''}
+              onClick={() => setGenerationMode('image-to-image')}
+            >
+              图生图
             </button>
           </div>
 
-          <div className="pack-list">
-            {stylePacks.map((pack) => (
+          {generationMode === 'text-to-image' ? (
+            <div className="pack-list">
+              {stylePacks.map((pack) => (
               <button
                 key={pack.id}
                 type="button"
@@ -438,8 +522,14 @@ export function App() {
                   <small>{pack.count} styles</small>
                 </span>
               </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="image-mode-note">
+              <strong>Reference driven</strong>
+              <span>上传参考图后，在 prompt 中描述要保留或改变的内容。</span>
+            </div>
+          )}
         </aside>
 
         <section className="composer-column panel">
@@ -450,14 +540,49 @@ export function App() {
             </button>
           </div>
 
-          <label className="field-group">
+          <div className="field-group prompt-field">
             <span className="field-label">Prompt</span>
-            <textarea
-              value={prompt}
-              placeholder="Describe the character, pose, clothing, scene, lighting, and composition you want..."
-              onChange={(event) => setPrompt(event.target.value)}
-            />
-          </label>
+            <div className={`prompt-input-wrap ${generationMode === 'image-to-image' ? 'has-reference-upload' : ''}`}>
+              <textarea
+                value={prompt}
+                placeholder={
+                  generationMode === 'image-to-image'
+                    ? 'Describe how the reference image should be transformed...'
+                    : 'Describe the character, pose, clothing, scene, lighting, and composition you want...'
+                }
+                onChange={(event) => setPrompt(event.target.value)}
+              />
+              {generationMode === 'image-to-image' ? (
+                <div className="reference-upload">
+                  {referenceImagePreview ? (
+                    <div className="reference-chip">
+                      <img src={referenceImagePreview} alt="" />
+                      <span>{referenceImage.name}</span>
+                      <button
+                        type="button"
+                        aria-label="Remove reference image"
+                        onClick={() => {
+                          setReferenceImage(null);
+                          if (referenceImagePreview) {
+                            URL.revokeObjectURL(referenceImagePreview);
+                          }
+                          setReferenceImagePreview('');
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+                  <label className="reference-upload-button">
+                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleReferenceImageChange} />
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M5 5h14v14H5V5Zm2 2v8.1l2.7-2.7 2.5 2.5 3.2-4.1L17 13v-6H7Zm0 10h10.5l-2-2.7-3.1 4-2.7-2.7L7 17Z" />
+                    </svg>
+                  </label>
+                </div>
+              ) : null}
+            </div>
+          </div>
 
           <section className="parameter-panel">
             <div className="panel-heading">
@@ -487,14 +612,16 @@ export function App() {
                 </select>
               </label>
 
-              <label>
-                <span>Images</span>
-                <select value={imageCount} onChange={(event) => setImageCount(event.target.value)}>
-                  <option>4</option>
-                  <option>2</option>
-                  <option>1</option>
-                </select>
-              </label>
+              {generationMode === 'text-to-image' ? (
+                <label>
+                  <span>Images</span>
+                  <select value={imageCount} onChange={(event) => setImageCount(event.target.value)}>
+                    <option>4</option>
+                    <option>2</option>
+                    <option>1</option>
+                  </select>
+                </label>
+              ) : null}
 
               <label>
                 <span>Seed</span>
@@ -512,7 +639,9 @@ export function App() {
               disabled={isGenerating}
               onClick={createGeneration}
             >
-              <span className="generate-label">{isGenerating ? 'Generating...' : 'Generate'}</span>
+              <span className="generate-label">
+                {isGenerating ? 'Generating...' : generationMode === 'image-to-image' ? 'Generate from image' : 'Generate'}
+              </span>
             </button>
             {generationError ? <p className="generation-error">{generationError}</p> : null}
           </section>
@@ -551,7 +680,11 @@ export function App() {
           ) : (
             <div className="result-empty result-grid-empty">
               <strong>No images yet</strong>
-              <span>Choose a style, write a prompt, then generate.</span>
+              <span>
+                {generationMode === 'image-to-image'
+                  ? 'Upload a reference image, write a prompt, then generate.'
+                  : 'Choose a style, write a prompt, then generate.'}
+              </span>
             </div>
           )}
 
@@ -726,7 +859,6 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
       <div className="asset-hero panel">
         <div className="asset-title">
           <h1>Asset Library</h1>
-          <span>Generated images</span>
         </div>
         <div className="asset-stats">
           <div>
@@ -802,9 +934,21 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                       <strong>{asset.status}</strong>
                     </div>
                   </button>
+                  <a
+                    className="asset-card-action asset-card-download"
+                    href={`${API_BASE_URL}/api/assets/${asset.id}/download`}
+                    title="Download"
+                    aria-label="Download asset"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M11 4h2v8l3-3 1.4 1.4L12 15.8l-5.4-5.4L8 9l3 3V4Z" />
+                      <path d="M5 18h14v2H5v-2Z" />
+                    </svg>
+                  </a>
                   <button
                     type="button"
-                    className={`asset-delete-icon ${deletingAssetId === asset.id ? 'is-deleting' : ''}`}
+                    className={`asset-card-action asset-delete-icon ${deletingAssetId === asset.id ? 'is-deleting' : ''}`}
                     title={deletingAssetId === asset.id ? 'Deleting' : 'Delete'}
                     aria-label={deletingAssetId === asset.id ? 'Deleting asset' : 'Delete asset'}
                     disabled={deletingAssetId === asset.id}
@@ -814,7 +958,14 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                       onDeleteAsset(asset.id);
                     }}
                   >
-                    {deletingAssetId === asset.id ? '...' : '×'}
+                    {deletingAssetId === asset.id ? (
+                      '...'
+                    ) : (
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Z" />
+                        <path d="M6 9h12l-1 11H7L6 9Zm4 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" />
+                      </svg>
+                    )}
                   </button>
                 </article>
               ))}

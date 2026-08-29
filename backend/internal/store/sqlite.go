@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS users (
 	email TEXT NOT NULL UNIQUE,
 	password_hash TEXT NOT NULL,
 	password_salt TEXT NOT NULL,
+	credits INTEGER NOT NULL DEFAULT 100,
 	created_at TEXT NOT NULL
 );
 
@@ -85,5 +87,36 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_assets_created_at ON assets(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_assets_style_id ON assets(style_id);
 `)
+	if err != nil {
+		return err
+	}
+	return db.ensureColumn(ctx, "users", "credits", "INTEGER NOT NULL DEFAULT 100")
+}
+
+func (db *DB) ensureColumn(ctx context.Context, table, column, definition string) error {
+	rows, err := db.sql.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var dataType string
+		var notNull int
+		var defaultValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			return err
+		}
+		if strings.EqualFold(name, column) {
+			return rows.Err()
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_, err = db.sql.ExecContext(ctx, `ALTER TABLE `+table+` ADD COLUMN `+column+` `+definition)
 	return err
 }

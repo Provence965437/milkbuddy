@@ -2,6 +2,8 @@ package generation
 
 import "time"
 
+const CreditsPerImage = 10
+
 type CreateRequest struct {
 	Prompt         string `json:"prompt"`
 	NegativePrompt string `json:"negative_prompt"`
@@ -10,6 +12,13 @@ type CreateRequest struct {
 	Quality        string `json:"quality"`
 	ImageCount     int    `json:"image_count"`
 	Seed           int64  `json:"seed"`
+}
+
+type ImageToImageRequest struct {
+	CreateRequest
+	ReferenceFilename string
+	ReferenceData     []byte
+	Denoise           float64
 }
 
 type JobStatus string
@@ -22,27 +31,29 @@ const (
 )
 
 type Job struct {
-	ID        string    `json:"id"`
-	PromptID  string    `json:"prompt_id"`
-	Status    JobStatus `json:"status"`
-	Prompt    string    `json:"prompt"`
-	Params    JobParams `json:"params"`
-	Images    []Image   `json:"images"`
-	Error     string    `json:"error,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID               string    `json:"id"`
+	PromptID         string    `json:"prompt_id"`
+	Status           JobStatus `json:"status"`
+	Prompt           string    `json:"prompt"`
+	Params           JobParams `json:"params"`
+	Images           []Image   `json:"images"`
+	Error            string    `json:"error,omitempty"`
+	CreditsRemaining *int      `json:"credits_remaining,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type JobParams struct {
-	StyleID     string `json:"style_id"`
-	AspectRatio string `json:"aspect_ratio"`
-	Quality     string `json:"quality"`
-	ImageCount  int    `json:"image_count"`
-	Seed        int64  `json:"seed"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	Steps       int    `json:"steps"`
-	CFG         int    `json:"cfg"`
+	StyleID     string  `json:"style_id"`
+	AspectRatio string  `json:"aspect_ratio"`
+	Quality     string  `json:"quality"`
+	ImageCount  int     `json:"image_count"`
+	Seed        int64   `json:"seed"`
+	Width       int     `json:"width"`
+	Height      int     `json:"height"`
+	Steps       int     `json:"steps"`
+	CFG         int     `json:"cfg"`
+	Denoise     float64 `json:"denoise,omitempty"`
 }
 
 type Image struct {

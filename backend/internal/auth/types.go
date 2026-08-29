@@ -16,6 +16,7 @@ type LoginRequest struct {
 type User struct {
 	ID        string    `json:"id"`
 	Email     string    `json:"email"`
+	Credits   int       `json:"credits"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

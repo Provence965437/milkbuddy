@@ -1,0 +1,154 @@
+{
+  "49": {
+    "inputs": {
+      "unet_name": "Z-Image_Turbo-轻量版_fp16",
+      "weight_dtype": "fp8_e4m3fn_fast"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet Loader"
+    }
+  },
+  "43": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "49",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "Model Sampling AuraFlow"
+    }
+  },
+  "47": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "41": {
+    "inputs": {
+      "vae_name": "ae.sft"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "51": {
+    "inputs": {
+      "image": "ComfyUI_00037_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Reference Image"
+    }
+  },
+  "50": {
+    "inputs": {
+      "clip": [
+        "47",
+        0
+      ],
+      "text": "cinematic fantasy portrait, keep the same composition and subject silhouette, transform into elegant anime illustration, soft warm lighting, detailed face, polished color"
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Manual Prompt"
+    }
+  },
+  "48": {
+    "inputs": {
+      "conditioning": [
+        "50",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Conditioning Zero Out"
+    }
+  },
+  "55": {
+    "inputs": {
+      "pixels": [
+        "51",
+        0
+      ],
+      "vae": [
+        "41",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode Reference"
+    }
+  },
+  "44": {
+    "inputs": {
+      "seed": 541803241361159,
+      "steps": 9,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 0.55,
+      "model": [
+        "43",
+        0
+      ],
+      "positive": [
+        "50",
+        0
+      ],
+      "negative": [
+        "48",
+        0
+      ],
+      "latent_image": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "45": {
+    "inputs": {
+      "samples": [
+        "44",
+        0
+      ],
+      "vae": [
+        "41",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "46": {
+    "inputs": {
+      "filename_prefix": "z-image-turbo-img2img-manual",
+      "images": [
+        "45",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

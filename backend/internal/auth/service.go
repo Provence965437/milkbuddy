@@ -20,6 +20,7 @@ const (
 	passwordIterations = 210000
 	passwordKeyLength  = 32
 	sessionTTL         = 30 * 24 * time.Hour
+	initialCredits     = 100
 )
 
 type SQLProvider interface {
@@ -58,15 +59,17 @@ func (s *Service) Register(req RegisterRequest) (User, Session, error) {
 	user := User{
 		ID:        newID("usr"),
 		Email:     email,
+		Credits:   initialCredits,
 		CreatedAt: now,
 	}
 	_, err = s.db.ExecContext(ctx, `
-INSERT INTO users (id, email, password_hash, password_salt, created_at)
-VALUES (?, ?, ?, ?, ?)`,
+INSERT INTO users (id, email, password_hash, password_salt, credits, created_at)
+VALUES (?, ?, ?, ?, ?, ?)`,
 		user.ID,
 		user.Email,
 		hash,
 		salt,
+		user.Credits,
 		user.CreatedAt.Format(time.RFC3339Nano),
 	)
 	if err != nil {
@@ -117,13 +120,13 @@ func (s *Service) UserBySession(token string) (User, bool) {
 	var user User
 	var createdAt string
 	err := s.db.QueryRowContext(ctx, `
-SELECT u.id, u.email, u.created_at
+SELECT u.id, u.email, u.credits, u.created_at
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token = ? AND s.expires_at > ?`,
 		token,
 		time.Now().UTC().Format(time.RFC3339Nano),
-	).Scan(&user.ID, &user.Email, &createdAt)
+	).Scan(&user.ID, &user.Email, &user.Credits, &createdAt)
 	if err != nil {
 		return User{}, false
 	}
@@ -133,6 +136,45 @@ WHERE s.token = ? AND s.expires_at > ?`,
 	}
 	user.CreatedAt = parsed
 	return user, true
+}
+
+func (s *Service) DebitCredits(userID string, amount int) (User, error) {
+	if amount <= 0 {
+		return User{}, errors.New("credit amount must be positive")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := s.db.ExecContext(ctx, `
+UPDATE users
+SET credits = credits - ?
+WHERE id = ? AND credits >= ?`,
+		amount,
+		userID,
+		amount,
+	)
+	if err != nil {
+		return User{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return User{}, err
+	}
+	if affected == 0 {
+		return User{}, errors.New("insufficient credits")
+	}
+	return s.userByID(ctx, userID)
+}
+
+func (s *Service) AddCredits(userID string, amount int) {
+	if amount <= 0 {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _ = s.db.ExecContext(ctx, `UPDATE users SET credits = credits + ? WHERE id = ?`, amount, userID)
 }
 
 func (s *Service) DeleteSession(token string) {
@@ -159,9 +201,9 @@ func (s *Service) userByEmail(ctx context.Context, email string) (User, string, 
 	var passwordSalt string
 	var createdAt string
 	err := s.db.QueryRowContext(ctx, `
-SELECT id, email, password_hash, password_salt, created_at
+SELECT id, email, password_hash, password_salt, credits, created_at
 FROM users
-WHERE email = ?`, email).Scan(&user.ID, &user.Email, &passwordHash, &passwordSalt, &createdAt)
+WHERE email = ?`, email).Scan(&user.ID, &user.Email, &passwordHash, &passwordSalt, &user.Credits, &createdAt)
 	if err != nil {
 		return User{}, "", "", err
 	}
@@ -171,6 +213,24 @@ WHERE email = ?`, email).Scan(&user.ID, &user.Email, &passwordHash, &passwordSal
 	}
 	user.CreatedAt = parsed
 	return user, passwordHash, passwordSalt, nil
+}
+
+func (s *Service) userByID(ctx context.Context, id string) (User, error) {
+	var user User
+	var createdAt string
+	err := s.db.QueryRowContext(ctx, `
+SELECT id, email, credits, created_at
+FROM users
+WHERE id = ?`, id).Scan(&user.ID, &user.Email, &user.Credits, &createdAt)
+	if err != nil {
+		return User{}, err
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
+		return User{}, err
+	}
+	user.CreatedAt = parsed
+	return user, nil
 }
 
 func normalizeEmail(value string) (string, error) {

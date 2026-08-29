@@ -16,6 +16,8 @@ import (
 	"milkbuddy/backend/internal/generation"
 )
 
+const maxReferenceImageBytes = 10 << 20
+
 type Server struct {
 	auth        *auth.Service
 	generations *generation.Service
@@ -57,6 +59,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/assets/{id}", s.deleteAsset)
 	s.mux.HandleFunc("GET /api/assets/{id}/download", s.downloadAsset)
 	s.mux.HandleFunc("POST /api/generations", s.createGeneration)
+	s.mux.HandleFunc("POST /api/generations/image-to-image", s.createImageToImageGeneration)
 	s.mux.HandleFunc("GET /api/generations/{id}", s.getGeneration)
 	s.mux.HandleFunc("GET /api/generations/{id}/images/{index}", s.getGenerationImage)
 }
@@ -113,7 +116,8 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAuth(w, r); !ok {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
 		return
 	}
 
@@ -123,12 +127,103 @@ func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cost, err := generation.CreditCost(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	updatedUser, err := s.auth.DebitCredits(user.ID, cost)
+	if err != nil {
+		writeError(w, http.StatusPaymentRequired, err.Error())
+		return
+	}
+
 	job, err := s.generations.Create(r.Context(), req)
 	if err != nil {
+		s.auth.AddCredits(user.ID, cost)
 		slog.Warn("create generation failed", "error", err)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	job.CreditsRemaining = &updatedUser.Credits
+	writeJSON(w, http.StatusAccepted, job)
+}
+
+func (s *Server) createImageToImageGeneration(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxReferenceImageBytes+(1<<20))
+	if err := r.ParseMultipartForm(maxReferenceImageBytes); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid multipart form")
+		return
+	}
+
+	file, header, err := r.FormFile("reference_image")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "reference image is required")
+		return
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxReferenceImageBytes+1))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "failed to read reference image")
+		return
+	}
+	if len(data) == 0 {
+		writeError(w, http.StatusBadRequest, "reference image is empty")
+		return
+	}
+	if len(data) > maxReferenceImageBytes {
+		writeError(w, http.StatusBadRequest, "reference image must be 10MB or smaller")
+		return
+	}
+
+	contentType := http.DetectContentType(data)
+	if contentType != "image/jpeg" && contentType != "image/png" && contentType != "image/webp" {
+		writeError(w, http.StatusBadRequest, "reference image must be jpg, png, or webp")
+		return
+	}
+
+	seed, _ := strconv.ParseInt(r.FormValue("seed"), 10, 64)
+	denoise, _ := strconv.ParseFloat(r.FormValue("denoise"), 64)
+
+	req := generation.ImageToImageRequest{
+		CreateRequest: generation.CreateRequest{
+			Prompt:      r.FormValue("prompt"),
+			StyleID:     r.FormValue("style_id"),
+			AspectRatio: r.FormValue("aspect_ratio"),
+			Quality:     r.FormValue("quality"),
+			ImageCount:  1,
+			Seed:        seed,
+		},
+		ReferenceFilename: header.Filename,
+		ReferenceData:     data,
+		Denoise:           denoise,
+	}
+
+	cost, err := generation.CreditCost(req.CreateRequest)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	updatedUser, err := s.auth.DebitCredits(user.ID, cost)
+	if err != nil {
+		writeError(w, http.StatusPaymentRequired, err.Error())
+		return
+	}
+
+	job, err := s.generations.CreateImageToImage(r.Context(), req)
+	if err != nil {
+		s.auth.AddCredits(user.ID, cost)
+		slog.Warn("create image-to-image generation failed", "error", err)
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	job.CreditsRemaining = &updatedUser.Credits
 	writeJSON(w, http.StatusAccepted, job)
 }
 

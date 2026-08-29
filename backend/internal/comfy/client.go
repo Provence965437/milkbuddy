@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"time"
@@ -41,6 +42,51 @@ func (c *Client) SubmitPrompt(ctx context.Context, workflow map[string]interface
 	var out SubmitResponse
 	if err := c.doJSON(ctx, http.MethodPost, "/prompt", bytes.NewReader(body), &out); err != nil {
 		return SubmitResponse{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) UploadImage(ctx context.Context, filename string, data []byte) (UploadImageResponse, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	part, err := writer.CreateFormFile("image", filename)
+	if err != nil {
+		return UploadImageResponse{}, err
+	}
+	if _, err := part.Write(data); err != nil {
+		return UploadImageResponse{}, err
+	}
+	if err := writer.WriteField("overwrite", "true"); err != nil {
+		return UploadImageResponse{}, err
+	}
+	if err := writer.Close(); err != nil {
+		return UploadImageResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/upload/image", &body)
+	if err != nil {
+		return UploadImageResponse{}, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return UploadImageResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	respData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return UploadImageResponse{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return UploadImageResponse{}, fmt.Errorf("comfy upload returned %s: %s", resp.Status, string(respData))
+	}
+
+	var out UploadImageResponse
+	if err := json.Unmarshal(respData, &out); err != nil {
+		return UploadImageResponse{}, fmt.Errorf("decode comfy upload response: %w", err)
 	}
 	return out, nil
 }

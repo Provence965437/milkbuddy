@@ -33,7 +33,7 @@ func Load() Config {
 		WorkflowPath: env("COMFY_WORKFLOW_PATH", "configs/workflows/z_image_turbo.json"),
 		DatabasePath: env("DATABASE_PATH", "data/milkbuddy.db"),
 		HTTPTimeout:  time.Duration(envInt("HTTP_TIMEOUT_SECONDS", 60)) * time.Second,
-		CORSOrigin:   env("CORS_ORIGIN", "http://127.0.0.1:4173,http://localhost:4173"),
+		CORSOrigin:   env("CORS_ORIGIN", "http://127.0.0.1:4173,http://localhost:4173,http://127.0.0.1:5173,http://localhost:5173"),
 		R2: R2Config{
 			AccountID:       env("R2_ACCOUNT_ID", ""),
 			Bucket:          env("R2_BUCKET", ""),
