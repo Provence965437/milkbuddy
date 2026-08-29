@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS users (
 	password_hash TEXT NOT NULL,
 	password_salt TEXT NOT NULL,
 	credits INTEGER NOT NULL DEFAULT 100,
+	is_admin INTEGER NOT NULL DEFAULT 0,
 	created_at TEXT NOT NULL
 );
 
@@ -90,7 +91,10 @@ CREATE INDEX IF NOT EXISTS idx_assets_style_id ON assets(style_id);
 	if err != nil {
 		return err
 	}
-	return db.ensureColumn(ctx, "users", "credits", "INTEGER NOT NULL DEFAULT 100")
+	if err := db.ensureColumn(ctx, "users", "credits", "INTEGER NOT NULL DEFAULT 100"); err != nil {
+		return err
+	}
+	return db.ensureColumn(ctx, "users", "is_admin", "INTEGER NOT NULL DEFAULT 0")
 }
 
 func (db *DB) ensureColumn(ctx context.Context, table, column, definition string) error {

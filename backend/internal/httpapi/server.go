@@ -132,20 +132,26 @@ func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	updatedUser, err := s.auth.DebitCredits(user.ID, cost)
-	if err != nil {
-		writeError(w, http.StatusPaymentRequired, err.Error())
-		return
+	creditsRemaining := user.Credits
+	if !user.IsAdmin {
+		updatedUser, err := s.auth.DebitCredits(user.ID, cost)
+		if err != nil {
+			writeError(w, http.StatusPaymentRequired, err.Error())
+			return
+		}
+		creditsRemaining = updatedUser.Credits
 	}
 
 	job, err := s.generations.Create(r.Context(), req)
 	if err != nil {
-		s.auth.AddCredits(user.ID, cost)
+		if !user.IsAdmin {
+			s.auth.AddCredits(user.ID, cost)
+		}
 		slog.Warn("create generation failed", "error", err)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	job.CreditsRemaining = &updatedUser.Credits
+	job.CreditsRemaining = &creditsRemaining
 	writeJSON(w, http.StatusAccepted, job)
 }
 
@@ -210,20 +216,26 @@ func (s *Server) createImageToImageGeneration(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	updatedUser, err := s.auth.DebitCredits(user.ID, cost)
-	if err != nil {
-		writeError(w, http.StatusPaymentRequired, err.Error())
-		return
+	creditsRemaining := user.Credits
+	if !user.IsAdmin {
+		updatedUser, err := s.auth.DebitCredits(user.ID, cost)
+		if err != nil {
+			writeError(w, http.StatusPaymentRequired, err.Error())
+			return
+		}
+		creditsRemaining = updatedUser.Credits
 	}
 
 	job, err := s.generations.CreateImageToImage(r.Context(), req)
 	if err != nil {
-		s.auth.AddCredits(user.ID, cost)
+		if !user.IsAdmin {
+			s.auth.AddCredits(user.ID, cost)
+		}
 		slog.Warn("create image-to-image generation failed", "error", err)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	job.CreditsRemaining = &updatedUser.Credits
+	job.CreditsRemaining = &creditsRemaining
 	writeJSON(w, http.StatusAccepted, job)
 }
 

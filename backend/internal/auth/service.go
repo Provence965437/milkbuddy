@@ -60,16 +60,18 @@ func (s *Service) Register(req RegisterRequest) (User, Session, error) {
 		ID:        newID("usr"),
 		Email:     email,
 		Credits:   initialCredits,
+		IsAdmin:   false,
 		CreatedAt: now,
 	}
 	_, err = s.db.ExecContext(ctx, `
-INSERT INTO users (id, email, password_hash, password_salt, credits, created_at)
-VALUES (?, ?, ?, ?, ?, ?)`,
+INSERT INTO users (id, email, password_hash, password_salt, credits, is_admin, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		user.ID,
 		user.Email,
 		hash,
 		salt,
 		user.Credits,
+		boolToInt(user.IsAdmin),
 		user.CreatedAt.Format(time.RFC3339Nano),
 	)
 	if err != nil {
@@ -119,14 +121,15 @@ func (s *Service) UserBySession(token string) (User, bool) {
 
 	var user User
 	var createdAt string
+	var adminInt int
 	err := s.db.QueryRowContext(ctx, `
-SELECT u.id, u.email, u.credits, u.created_at
+SELECT u.id, u.email, u.credits, u.is_admin, u.created_at
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token = ? AND s.expires_at > ?`,
 		token,
 		time.Now().UTC().Format(time.RFC3339Nano),
-	).Scan(&user.ID, &user.Email, &user.Credits, &createdAt)
+	).Scan(&user.ID, &user.Email, &user.Credits, &adminInt, &createdAt)
 	if err != nil {
 		return User{}, false
 	}
@@ -134,6 +137,7 @@ WHERE s.token = ? AND s.expires_at > ?`,
 	if err != nil {
 		return User{}, false
 	}
+	user.IsAdmin = adminInt == 1
 	user.CreatedAt = parsed
 	return user, true
 }
@@ -177,6 +181,29 @@ func (s *Service) AddCredits(userID string, amount int) {
 	_, _ = s.db.ExecContext(ctx, `UPDATE users SET credits = credits + ? WHERE id = ?`, amount, userID)
 }
 
+func (s *Service) SetAdminByEmail(email string, isAdmin bool) error {
+	normalizedEmail, err := normalizeEmail(email)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := s.db.ExecContext(ctx, `UPDATE users SET is_admin = ? WHERE email = ?`, boolToInt(isAdmin), normalizedEmail)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (s *Service) DeleteSession(token string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -200,10 +227,11 @@ func (s *Service) userByEmail(ctx context.Context, email string) (User, string, 
 	var passwordHash string
 	var passwordSalt string
 	var createdAt string
+	var adminInt int
 	err := s.db.QueryRowContext(ctx, `
-SELECT id, email, password_hash, password_salt, credits, created_at
+SELECT id, email, password_hash, password_salt, credits, is_admin, created_at
 FROM users
-WHERE email = ?`, email).Scan(&user.ID, &user.Email, &passwordHash, &passwordSalt, &user.Credits, &createdAt)
+WHERE email = ?`, email).Scan(&user.ID, &user.Email, &passwordHash, &passwordSalt, &user.Credits, &adminInt, &createdAt)
 	if err != nil {
 		return User{}, "", "", err
 	}
@@ -211,6 +239,7 @@ WHERE email = ?`, email).Scan(&user.ID, &user.Email, &passwordHash, &passwordSal
 	if err != nil {
 		return User{}, "", "", err
 	}
+	user.IsAdmin = adminInt == 1
 	user.CreatedAt = parsed
 	return user, passwordHash, passwordSalt, nil
 }
@@ -218,10 +247,11 @@ WHERE email = ?`, email).Scan(&user.ID, &user.Email, &passwordHash, &passwordSal
 func (s *Service) userByID(ctx context.Context, id string) (User, error) {
 	var user User
 	var createdAt string
+	var adminInt int
 	err := s.db.QueryRowContext(ctx, `
-SELECT id, email, credits, created_at
+SELECT id, email, credits, is_admin, created_at
 FROM users
-WHERE id = ?`, id).Scan(&user.ID, &user.Email, &user.Credits, &createdAt)
+WHERE id = ?`, id).Scan(&user.ID, &user.Email, &user.Credits, &adminInt, &createdAt)
 	if err != nil {
 		return User{}, err
 	}
@@ -229,6 +259,7 @@ WHERE id = ?`, id).Scan(&user.ID, &user.Email, &user.Credits, &createdAt)
 	if err != nil {
 		return User{}, err
 	}
+	user.IsAdmin = adminInt == 1
 	user.CreatedAt = parsed
 	return user, nil
 }
@@ -293,4 +324,11 @@ func newID(prefix string) string {
 		return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
 	}
 	return prefix + "_" + hex.EncodeToString(bytes)
+}
+
+func boolToInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }
