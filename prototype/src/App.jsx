@@ -32,46 +32,208 @@ async function copyText(value) {
   document.body.removeChild(textarea);
 }
 
-const stylePacks = [
-  { id: 'anime_bishoujo', name: '美少女动漫', count: 1, image: '/assets/portrait-royal.png' },
-  { id: 'anime_bishoujo_ultimate', name: '美少女(3d)', count: 1, image: '/assets/portrait-royal.png' },
-  { id: 'ultimate_bishoujo', name: '真实写实', count: 1, image: '/assets/portrait-royal.png' },
-];
+const copyIcon = (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 7h10v13H8V7Zm2 2v9h6V9h-6Z" />
+    <path d="M5 4h10v2H7v10H5V4Z" />
+  </svg>
+);
 
-const resultSets = [
-  {
-    id: 'castle',
-    prompt:
-      'adult anime girl lying on a bed with white and pink sheets, elegant pink sleepwear, blue eyes, shy expression, bedside lamp in the background, soft romantic lighting, tasteful composition',
-    images: [
-      '/assets/castle-sunrise.png',
-      '/assets/library-gold.png',
-      '/assets/castle-sunrise.png',
-      '/assets/castle-sunrise.png',
-    ],
+const text = {
+  zh: {
+    checkingSession: '检查登录状态',
+    loadingAccount: '正在加载你的 MilkBuddy 账号状态',
+    brandSubtitle: 'AI 图像创作',
+    workspace: '工作台',
+    assets: '资产',
+    credits: '积分',
+    signOut: '退出',
+    signIn: '登录',
+    createMode: '创作模式',
+    referenceDriven: '参考图驱动',
+    referenceNote: '上传参考图后，在 prompt 中描述要保留或改变的内容。',
+    composerTitle: '描述你想创作的图像',
+    prompt: '提示词',
+    clear: '清空',
+    imageEditPlaceholder: '描述参考图需要如何修改...',
+    textPromptPlaceholder: '描述人物、姿势、服装、场景、光线和构图...',
+    parameters: '参数',
+    aspectRatio: '画幅',
+    quality: '质量',
+    high: '高质量',
+    ultra: '超高质量',
+    draft: '草稿',
+    images: '数量',
+    seed: '种子',
+    random: '随机',
+    locked: '锁定',
+    generating: '生成中...',
+    generateFromImage: '图生图',
+    generate: '生成',
+    results: '结果',
+    noImages: '暂无图片',
+    noImagesImageMode: '上传参考图，填写提示词，然后生成。',
+    noImagesTextMode: '选择风格，填写提示词，然后生成。',
+    selectedImage: '选中图片',
+    generatingBatch: '批量生成中',
+    requestedImages: (count) => `已请求 ${count} 张图片，完成后显示预览。`,
+    nothingSelected: '未选择图片',
+    selectableHere: '生成后的图片会在这里选择。',
+    download: '下载',
+    recent: '最近',
+    recentGenerated: '最近生成',
+    accountEyebrow: 'MilkBuddy 账号',
+    createAccountTitle: '创建你的创作账号',
+    loginTitle: '登录你的创作账号',
+    emailLogin: '邮箱登录',
+    register: '注册',
+    login: '登录',
+    email: '邮箱',
+    password: '密码',
+    passwordPlaceholder: '至少 8 位字符',
+    repeatPassword: '重复密码',
+    repeatPasswordPlaceholder: '再次输入密码',
+    processing: '处理中...',
+    createAccount: '创建账号',
+    assetLibrary: '资产库',
+    animeBishoujo: '美少女动漫',
+    realistic: '真实写实',
+    totalAssets: '资产总数',
+    loaded: '已加载',
+    collections: '分类',
+    new: '新建',
+    allImages: '全部图片',
+    recentlyLoaded: '最近加载',
+    searchAssets: '搜索资产和风格...',
+    all: '全部',
+    generated: '已生成',
+    refresh: '刷新',
+    loading: '加载中...',
+    loadingAssets: '加载资产中',
+    loadingAssetsHint: '正在从数据库读取生成资产。',
+    noAssets: '暂无资产',
+    noAssetsHint: '先生成图片，完成结果会自动保存到这里。',
+    assetDetail: '资产详情',
+    generatedImage: '生成图片',
+    closeAssetDetail: '关闭资产详情',
+    copied: '已复制',
+    copyPrompt: '复制提示词',
+    promptCopied: '提示词已复制',
+    deleting: '删除中',
+    delete: '删除',
+    deletingAsset: '正在删除资产',
+    deleteAsset: '删除资产',
+    deleteConfirm: '删除这个资产？',
+    style: '风格',
+    ratio: '比例',
+    size: '尺寸',
+    created: '创建时间',
+    uploadReferenceError: '请先上传参考图。',
+    loadAssetsError: '加载资产失败',
+    createImageToImageError: '图生图生成失败',
+    createGenerationError: '生成失败',
+    deleteAssetError: '删除资产失败',
   },
-  {
-    id: 'portrait',
-    prompt:
-      'adult anime girl with long dark hair and blue eyes, soft expression, elegant pink outfit, warm bedroom lighting, detailed anime illustration, tasteful composition',
-    images: [
-      '/assets/portrait-royal.png',
-      '/assets/portrait-royal.png',
-      '/assets/library-gold.png',
-      '/assets/portrait-royal.png',
-    ],
+  en: {
+    checkingSession: 'Checking session',
+    loadingAccount: 'Loading your MilkBuddy account state.',
+    brandSubtitle: 'AI Image Studio',
+    workspace: 'Workspace',
+    assets: 'Assets',
+    credits: 'Credits',
+    signOut: 'Sign out',
+    signIn: 'Sign in',
+    createMode: 'Create Mode',
+    referenceDriven: 'Reference driven',
+    referenceNote: 'Upload a reference image, then describe what to keep or change.',
+    composerTitle: 'Describe the image you want to create',
+    prompt: 'Prompt',
+    clear: 'Clear',
+    imageEditPlaceholder: 'Describe how the reference image should be transformed...',
+    textPromptPlaceholder: 'Describe the character, pose, clothing, scene, lighting, and composition...',
+    parameters: 'Parameters',
+    aspectRatio: 'Aspect ratio',
+    quality: 'Quality',
+    high: 'High',
+    ultra: 'Ultra',
+    draft: 'Draft',
+    images: 'Images',
+    seed: 'Seed',
+    random: 'Random',
+    locked: 'Locked',
+    generating: 'Generating...',
+    generateFromImage: 'Generate from image',
+    generate: 'Generate',
+    results: 'Results',
+    noImages: 'No images yet',
+    noImagesImageMode: 'Upload a reference image, write a prompt, then generate.',
+    noImagesTextMode: 'Choose a style, write a prompt, then generate.',
+    selectedImage: 'Selected Image',
+    generatingBatch: 'Generating batch',
+    requestedImages: (count) => `${count} image${count > 1 ? 's' : ''} requested. Preview will load after completion.`,
+    nothingSelected: 'Nothing selected',
+    selectableHere: 'Generated images will be selectable here.',
+    download: 'Download',
+    recent: 'Recent',
+    recentGenerated: 'Recent generations',
+    accountEyebrow: 'MilkBuddy Account',
+    createAccountTitle: 'Create your account',
+    loginTitle: 'Login to your account',
+    emailLogin: 'Email login',
+    register: 'Register',
+    login: 'Login',
+    email: 'Email',
+    password: 'Password',
+    passwordPlaceholder: 'At least 8 characters',
+    repeatPassword: 'Repeat password',
+    repeatPasswordPlaceholder: 'Repeat your password',
+    processing: 'Processing...',
+    createAccount: 'Create account',
+    assetLibrary: 'Asset Library',
+    animeBishoujo: 'Anime Girl',
+    realistic: 'Realistic',
+    totalAssets: 'Total assets',
+    loaded: 'Loaded',
+    collections: 'Collections',
+    new: 'New',
+    allImages: 'All Images',
+    recentlyLoaded: 'Recently loaded',
+    searchAssets: 'Search assets and styles...',
+    all: 'All',
+    generated: 'Generated',
+    refresh: 'Refresh',
+    loading: 'Loading...',
+    loadingAssets: 'Loading assets',
+    loadingAssetsHint: 'Fetching generated assets from the database.',
+    noAssets: 'No assets yet',
+    noAssetsHint: 'Generate images first. Completed results will be saved here automatically.',
+    assetDetail: 'Asset Detail',
+    generatedImage: 'Generated image',
+    closeAssetDetail: 'Close asset detail',
+    copied: 'Copied',
+    copyPrompt: 'Copy prompt',
+    promptCopied: 'Prompt copied',
+    deleting: 'Deleting',
+    delete: 'Delete',
+    deletingAsset: 'Deleting asset',
+    deleteAsset: 'Delete asset',
+    deleteConfirm: 'Delete this asset?',
+    style: 'Style',
+    ratio: 'Ratio',
+    size: 'Size',
+    created: 'Created',
+    uploadReferenceError: 'Upload a reference image before generating.',
+    loadAssetsError: 'Failed to load assets',
+    createImageToImageError: 'Failed to create image-to-image generation',
+    createGenerationError: 'Failed to create generation',
+    deleteAssetError: 'Failed to delete asset',
   },
-  {
-    id: 'street',
-    prompt:
-      'adult anime girl sitting on a bed, pink and white bedroom, soft lamp light, shy smile, delicate face, clean anime illustration, tasteful composition',
-    images: [
-      '/assets/cyberpunk-rain.png',
-      '/assets/cyberpunk-rain.png',
-      '/assets/castle-sunrise.png',
-      '/assets/cyberpunk-rain.png',
-    ],
-  },
+};
+
+const stylePacks = [
+  { id: 'anime_bishoujo', name: { zh: '美少女动漫', en: 'Anime Girl' }, count: 1, image: '/assets/milkbuddy-style-anime.png' },
+  { id: 'anime_bishoujo_ultimate', name: { zh: '美少女(3d)', en: 'Anime Girl (3D)' }, count: 1, image: '/assets/milkbuddy-style-anime-3d.png' },
+  { id: 'ultimate_bishoujo', name: { zh: '真实写实', en: 'Realistic' }, count: 1, image: '/assets/milkbuddy-style-realistic.png' },
 ];
 
 const timelineCards = [
@@ -84,6 +246,7 @@ const timelineCards = [
 ];
 
 export function App() {
+  const [language, setLanguage] = useState('zh');
   const [currentPage, setCurrentPage] = useState('auth');
   const [authChecked, setAuthChecked] = useState(false);
   const [authMode, setAuthMode] = useState('register');
@@ -95,7 +258,6 @@ export function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [generationMode, setGenerationMode] = useState('text-to-image');
   const [activePack, setActivePack] = useState(stylePacks[0].id);
-  const [activeSetId, setActiveSetId] = useState(resultSets[0].id);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('16:9');
@@ -114,6 +276,7 @@ export function App() {
   const [referenceImage, setReferenceImage] = useState(null);
   const [referenceImagePreview, setReferenceImagePreview] = useState('');
   const recentImages = assets.length ? assets.map((asset) => imageURL(asset.url)) : timelineCards;
+  const t = text[language];
 
   const loadAssets = async () => {
     if (!authUser) {
@@ -129,7 +292,7 @@ export function App() {
           setAuthUser(null);
           setCurrentPage('auth');
         }
-        throw new Error(payload.error || 'Failed to load assets');
+        throw new Error(payload.error || t.loadAssetsError);
       }
       setAssets(payload.assets ?? []);
       setAssetTotal(payload.total ?? 0);
@@ -138,12 +301,6 @@ export function App() {
     } finally {
       setAssetsLoading(false);
     }
-  };
-
-  const handleSelectSet = (setId) => {
-    setActiveSetId(setId);
-    setSelectedImageIndex(0);
-    setPrompt((resultSets.find((set) => set.id === setId) ?? resultSets[0]).prompt);
   };
 
   const activeImages =
@@ -161,7 +318,7 @@ export function App() {
     setPendingImageCount(effectiveImageCount);
     if (generationMode === 'image-to-image') {
       if (!referenceImage) {
-        setGenerationError('Upload a reference image before generating.');
+        setGenerationError(t.uploadReferenceError);
         return;
       }
       try {
@@ -185,7 +342,7 @@ export function App() {
             setAuthUser(null);
             setCurrentPage('auth');
           }
-          throw new Error(payload.error || 'Failed to create image-to-image generation');
+          throw new Error(payload.error || t.createImageToImageError);
         }
         setGenerationJob(payload);
         if (typeof payload.credits_remaining === 'number') {
@@ -217,7 +374,7 @@ export function App() {
           setAuthUser(null);
           setCurrentPage('auth');
         }
-        throw new Error(payload.error || 'Failed to create generation');
+        throw new Error(payload.error || t.createGenerationError);
       }
       setGenerationJob(payload);
       if (typeof payload.credits_remaining === 'number') {
@@ -292,7 +449,7 @@ export function App() {
   };
 
   const deleteAsset = async (assetId) => {
-    if (deletingAssetId || !window.confirm('Delete this asset?')) {
+    if (deletingAssetId || !window.confirm(t.deleteConfirm)) {
       return;
     }
     setAssetError('');
@@ -308,7 +465,7 @@ export function App() {
           setAuthUser(null);
           setCurrentPage('auth');
         }
-        throw new Error(payload.error || 'Failed to delete asset');
+      throw new Error(payload.error || t.deleteAssetError);
       }
       setAssets((items) => items.filter((asset) => asset.id !== assetId));
       setAssetTotal((count) => Math.max(0, count - 1));
@@ -393,8 +550,8 @@ export function App() {
       <main className="app-shell">
         <div className="auth-page">
           <div className="result-empty">
-            <strong>Checking session</strong>
-            <span>Loading your MilkBuddy account state.</span>
+            <strong>{t.checkingSession}</strong>
+            <span>{t.loadingAccount}</span>
           </div>
         </div>
       </main>
@@ -406,7 +563,7 @@ export function App() {
       <header className="topbar">
         <div className="brand-block">
           <div className="brand-mark">MilkBuddy</div>
-          <div className="brand-subtitle">Creative Image Free</div>
+          <div className="brand-subtitle">{t.brandSubtitle}</div>
         </div>
 
         <div className="status-strip">
@@ -418,44 +575,43 @@ export function App() {
                 className={currentPage === 'workspace' ? 'is-active' : ''}
                 onClick={() => setCurrentPage('workspace')}
               >
-                Workspace
+                {t.workspace}
               </button>
               <button
                 type="button"
                 className={currentPage === 'assets' ? 'is-active' : ''}
                 onClick={() => setCurrentPage('assets')}
               >
-                资产
+                {t.assets}
               </button>
             </nav>
           ) : null}
-          <div className="status-card">
-            <span className="credit-orb" aria-hidden="true" />
-            <span className="credit-label">Credits</span>
-            <strong>{authUser?.credits ?? 0}</strong>
-          </div>
           {authUser ? (
-            <div className="account-menu">
-            <button
-              type="button"
-              className="user-pill user-menu"
-              aria-expanded={userMenuOpen}
-              onClick={() => setUserMenuOpen((open) => !open)}
-            >
-              <span className="avatar-dot">{authUser.email.slice(0, 1).toUpperCase()}</span>
-              <span>{authUser.email}</span>
-              <span className="menu-caret">v</span>
-            </button>
-
-            {userMenuOpen ? (
-              <div className="account-dropdown">
-                <button type="button">Account</button>
-                <button type="button">Billing</button>
-                <button type="button">Settings</button>
-                <button type="button" onClick={handleSignOut}>Sign out</button>
+            <>
+              <div className="status-card">
+                <span className="credit-orb" aria-hidden="true" />
+                <span className="credit-label">{t.credits}</span>
+                <strong>{authUser.credits}</strong>
               </div>
-            ) : null}
-          </div>
+              <div className="account-menu">
+                <button
+                  type="button"
+                  className="user-pill user-menu"
+                  aria-expanded={userMenuOpen}
+                  onClick={() => setUserMenuOpen((open) => !open)}
+                >
+                  <span className="avatar-dot">{authUser.email.slice(0, 1).toUpperCase()}</span>
+                  <span>{authUser.email}</span>
+                  <span className="menu-caret">v</span>
+                </button>
+
+                {userMenuOpen ? (
+                  <div className="account-dropdown">
+                    <button type="button" onClick={handleSignOut}>{t.signOut}</button>
+                  </div>
+                ) : null}
+              </div>
+            </>
           ) : (
             <button
               type="button"
@@ -466,9 +622,16 @@ export function App() {
               }}
             >
               <span className="avatar-dot">?</span>
-              <span>Sign in</span>
+              <span>{t.signIn}</span>
             </button>
           )}
+          <button
+            type="button"
+            className="language-toggle"
+            onClick={() => setLanguage((value) => (value === 'zh' ? 'en' : 'zh'))}
+          >
+            {language === 'zh' ? 'EN' : '中文'}
+          </button>
         </div>
       </header>
 
@@ -488,6 +651,7 @@ export function App() {
           onPasswordChange={setAuthPassword}
           onPasswordConfirmChange={setAuthPasswordConfirm}
           onSubmit={submitAuth}
+          t={t}
         />
       ) : currentPage === 'assets' ? (
         <AssetsPage
@@ -498,13 +662,14 @@ export function App() {
           onRefresh={loadAssets}
           onDeleteAsset={deleteAsset}
           deletingAssetId={deletingAssetId}
+          t={t}
         />
       ) : (
       <>
         <section className="workspace-grid">
         <aside className="left-rail panel">
           <div className="panel-heading">
-            <h2>Create Mode</h2>
+            <h2>{t.createMode}</h2>
           </div>
 
           <div className={`mode-switch ${generationMode === 'image-to-image' ? 'is-image-mode' : ''}`} aria-label="Generation mode">
@@ -536,35 +701,35 @@ export function App() {
               >
                 <img src={pack.image} alt="" />
                 <span>
-                  <strong>{pack.name}</strong>
-                  <small>{pack.count} styles</small>
+                  <strong>{pack.name[language]}</strong>
+                  <small>{pack.count} {language === 'zh' ? '个风格' : 'style'}</small>
                 </span>
               </button>
               ))}
             </div>
           ) : (
             <div className="image-mode-note">
-              <strong>Reference driven</strong>
-              <span>上传参考图后，在 prompt 中描述要保留或改变的内容。</span>
+              <strong>{t.referenceDriven}</strong>
+              <span>{t.referenceNote}</span>
             </div>
           )}
         </aside>
 
         <section className="composer-column panel">
           <div className="composer-header">
-            <h1>Describe the image you want to create</h1>
+            <h1>{t.composerTitle}</h1>
           </div>
 
           <div className="field-group prompt-field">
             <div className="field-label-row">
-              <span className="field-label">Prompt</span>
+              <span className="field-label">{t.prompt}</span>
               <button
                 type="button"
                 className="prompt-clear-button"
                 disabled={!prompt}
                 onClick={() => setPrompt('')}
               >
-                Clear
+                {t.clear}
               </button>
             </div>
             <div className={`prompt-input-wrap ${generationMode === 'image-to-image' ? 'has-reference-upload' : ''}`}>
@@ -572,8 +737,8 @@ export function App() {
                 value={prompt}
                 placeholder={
                   generationMode === 'image-to-image'
-                    ? 'Describe how the reference image should be transformed...'
-                    : 'Describe the character, pose, clothing, scene, lighting, and composition you want...'
+                    ? t.imageEditPlaceholder
+                    : t.textPromptPlaceholder
                 }
                 onChange={(event) => setPrompt(event.target.value)}
               />
@@ -611,15 +776,12 @@ export function App() {
 
           <section className="parameter-panel">
             <div className="panel-heading">
-              <h2>Parameters</h2>
-              <button type="button" className="ghost-link">
-                Advanced settings
-              </button>
+              <h2>{t.parameters}</h2>
             </div>
 
             <div className="parameter-grid">
               <label>
-                <span>Aspect ratio</span>
+                <span>{t.aspectRatio}</span>
                 <select value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value)}>
                   <option>16:9</option>
                   <option>3:2</option>
@@ -629,17 +791,17 @@ export function App() {
               </label>
 
               <label>
-                <span>Quality</span>
+                <span>{t.quality}</span>
                 <select value={quality} onChange={(event) => setQuality(event.target.value)}>
-                  <option>High</option>
-                  <option>Ultra</option>
-                  <option>Draft</option>
+                  <option value="High">{t.high}</option>
+                  <option value="Ultra">{t.ultra}</option>
+                  <option value="Draft">{t.draft}</option>
                 </select>
               </label>
 
               {generationMode === 'text-to-image' ? (
                 <label>
-                  <span>Images</span>
+                  <span>{t.images}</span>
                   <select value={imageCount} onChange={(event) => setImageCount(event.target.value)}>
                     <option>4</option>
                     <option>2</option>
@@ -649,10 +811,10 @@ export function App() {
               ) : null}
 
               <label>
-                <span>Seed</span>
+                <span>{t.seed}</span>
                 <select value={seed} onChange={(event) => setSeed(event.target.value)}>
-                  <option>Random</option>
-                  <option>Locked</option>
+                  <option value="Random">{t.random}</option>
+                  <option value="Locked">{t.locked}</option>
                   <option>134992</option>
                 </select>
               </label>
@@ -665,7 +827,7 @@ export function App() {
               onClick={createGeneration}
             >
               <span className="generate-label">
-                {isGenerating ? 'Generating...' : generationMode === 'image-to-image' ? 'Generate from image' : 'Generate'}
+                {isGenerating ? t.generating : generationMode === 'image-to-image' ? t.generateFromImage : t.generate}
               </span>
             </button>
             {generationError ? <p className="generation-error">{generationError}</p> : null}
@@ -674,10 +836,7 @@ export function App() {
 
         <section className="results-column panel">
           <div className="panel-heading">
-            <h2>Results</h2>
-            <button type="button" className="ghost-link">
-              Select best
-            </button>
+            <h2>{t.results}</h2>
           </div>
 
           {isGenerating ? (
@@ -685,7 +844,7 @@ export function App() {
               {loadingSlots.map((slot) => (
                 <div key={`loading-${slot}`} className="result-thumb result-loading">
                   <span className="loading-orb" />
-                  <span className="loading-text">Generating {slot + 1}</span>
+                  <span className="loading-text">{t.generating} {slot + 1}</span>
                 </div>
               ))}
             </div>
@@ -704,69 +863,53 @@ export function App() {
             </div>
           ) : (
             <div className="result-empty result-grid-empty">
-              <strong>No images yet</strong>
+              <strong>{t.noImages}</strong>
               <span>
                 {generationMode === 'image-to-image'
-                  ? 'Upload a reference image, write a prompt, then generate.'
-                  : 'Choose a style, write a prompt, then generate.'}
+                  ? t.noImagesImageMode
+                  : t.noImagesTextMode}
               </span>
             </div>
           )}
 
           <div className="selected-block">
             <div className="selected-header">
-              <h3>Selected Image</h3>
+              <h3>{t.selectedImage}</h3>
               <span>{hasResults ? aspectRatio : generationJob?.status ?? 'empty'}</span>
             </div>
             {isGenerating ? (
               <div className="selected-empty selected-loading">
                 <span className="loading-orb loading-orb-large" />
-                <strong>Generating batch</strong>
-                <span>{pendingImageCount} image{pendingImageCount > 1 ? 's' : ''} requested. Preview will load after completion.</span>
+                <strong>{t.generatingBatch}</strong>
+                <span>{t.requestedImages(pendingImageCount)}</span>
               </div>
             ) : hasResults ? (
               <img className="selected-image" src={activeImages[selectedImageIndex]} alt="" />
             ) : (
               <div className="selected-empty">
-                <strong>Nothing selected</strong>
-                <span>Generated images will be selectable here.</span>
+                <strong>{t.nothingSelected}</strong>
+                <span>{t.selectableHere}</span>
               </div>
             )}
-          </div>
-
-          <div className="result-actions">
-            <button type="button" disabled={!hasResults}>Upscale</button>
-            <button type="button" disabled={!hasResults}>Vary (Subtle)</button>
-            <button type="button" disabled={!hasResults}>Vary (Strong)</button>
-            <button type="button" disabled={!hasResults}>Download</button>
           </div>
         </section>
         </section>
 
         <footer className="timeline-bar">
         <div className="timeline-meta">
-          <span className="timeline-label">最近</span>
-          <strong>最近生成</strong>
+          <span className="timeline-label">{t.recent}</span>
+          <strong>{t.recentGenerated}</strong>
         </div>
 
         <div className="timeline-strip">
           {recentImages.map((image, index) => (
-            <button
+            <div
               key={`${image}-timeline-${index}`}
-              type="button"
               className={`timeline-card ${index === 0 ? 'is-active' : ''}`}
-              onClick={() => {
-                if (index === 0) handleSelectSet('castle');
-                if (index === 1) handleSelectSet('street');
-                if (index === 2) handleSelectSet('portrait');
-              }}
             >
               <img src={image} alt="" />
-            </button>
+            </div>
           ))}
-          <button type="button" className="timeline-add">
-            View all
-          </button>
         </div>
         </footer>
       </>
@@ -787,6 +930,7 @@ function AuthPage({
   onPasswordChange,
   onPasswordConfirmChange,
   onSubmit,
+  t,
 }) {
   const isRegister = mode === 'register';
 
@@ -794,9 +938,9 @@ function AuthPage({
     <section className="auth-page">
       <div className="auth-card panel">
         <div className="auth-copy">
-          <span className="eyebrow">MilkBuddy Account</span>
-          <h1>{isRegister ? '创建你的创作账号' : '登录你的创作账号'}</h1>
-          <p>账号系统先使用邮箱和密码。后续接入 Google 登录、积分、资产持久化时，会复用同一套用户身份。</p>
+          <span className="eyebrow">{t.accountEyebrow}</span>
+          <h1>{isRegister ? t.createAccountTitle : t.loginTitle}</h1>
+          <p>{t.emailLogin}</p>
         </div>
 
         <form className="auth-form" onSubmit={onSubmit}>
@@ -806,19 +950,19 @@ function AuthPage({
               className={isRegister ? 'is-active' : ''}
               onClick={() => onModeChange('register')}
             >
-              Register
+              {t.register}
             </button>
             <button
               type="button"
               className={!isRegister ? 'is-active' : ''}
               onClick={() => onModeChange('login')}
             >
-              Login
+              {t.login}
             </button>
           </div>
 
           <label>
-            <span>Email</span>
+            <span>{t.email}</span>
             <input
               type="email"
               value={email}
@@ -829,11 +973,11 @@ function AuthPage({
           </label>
 
           <label>
-            <span>Password</span>
+            <span>{t.password}</span>
             <input
               type="password"
               value={password}
-              placeholder="At least 8 characters"
+              placeholder={t.passwordPlaceholder}
               autoComplete={isRegister ? 'new-password' : 'current-password'}
               onChange={(event) => onPasswordChange(event.target.value)}
             />
@@ -841,11 +985,11 @@ function AuthPage({
 
           {isRegister ? (
             <label>
-              <span>Repeat password</span>
+              <span>{t.repeatPassword}</span>
               <input
                 type="password"
                 value={passwordConfirm}
-                placeholder="Repeat your password"
+                placeholder={t.repeatPasswordPlaceholder}
                 autoComplete="new-password"
                 onChange={(event) => onPasswordConfirmChange(event.target.value)}
               />
@@ -855,7 +999,7 @@ function AuthPage({
           {error ? <p className="auth-error">{error}</p> : null}
 
           <button type="submit" className="auth-submit" disabled={loading}>
-            {loading ? 'Processing...' : isRegister ? 'Create account' : 'Login'}
+            {loading ? t.processing : isRegister ? t.createAccount : t.login}
           </button>
         </form>
       </div>
@@ -863,10 +1007,10 @@ function AuthPage({
   );
 }
 
-function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, deletingAssetId }) {
-  const [selectedAssetId, setSelectedAssetId] = useState('');
+function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, deletingAssetId, t }) {
+  const [activeAssetId, setActiveAssetId] = useState('');
   const [copiedAssetId, setCopiedAssetId] = useState('');
-  const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? assets[0];
+  const activeAsset = assets.find((asset) => asset.id === activeAssetId);
   const animeCount = assets.filter((asset) => asset.style_id === 'anime_bishoujo').length;
   const realisticCount = assets.filter((asset) => asset.style_id === 'ultimate_bishoujo').length;
 
@@ -880,33 +1024,29 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
   };
 
   useEffect(() => {
-    if (selectedAssetId && !assets.some((asset) => asset.id === selectedAssetId)) {
-      setSelectedAssetId(assets[0]?.id ?? '');
-      return;
+    if (activeAssetId && !assets.some((asset) => asset.id === activeAssetId)) {
+      setActiveAssetId('');
     }
-    if (!selectedAssetId && assets[0]) {
-      setSelectedAssetId(assets[0].id);
-    }
-  }, [assets, selectedAssetId]);
+  }, [assets, activeAssetId]);
 
   return (
     <section className="asset-page">
       <div className="asset-hero panel">
         <div className="asset-title">
-          <h1>Asset Library</h1>
+          <h1>{t.assetLibrary}</h1>
         </div>
         <div className="asset-stats">
           <div>
             <strong>{total}</strong>
-            <span>Total assets</span>
+            <span>{t.totalAssets}</span>
           </div>
           <div>
             <strong>{assets.length}</strong>
-            <span>Loaded</span>
+            <span>{t.loaded}</span>
           </div>
           <div>
             <strong>{realisticCount}</strong>
-            <span>真实写实</span>
+            <span>{t.realistic}</span>
           </div>
         </div>
       </div>
@@ -914,66 +1054,59 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
       <div className="asset-layout">
         <aside className="asset-sidebar panel">
           <div className="panel-heading">
-            <h2>Collections</h2>
-            <button type="button" className="ghost-link">New</button>
+            <h2>{t.collections}</h2>
           </div>
-          <button type="button" className="collection-item is-active">
-            <span>All Images</span>
+          <div className="collection-item is-active">
+            <span>{t.allImages}</span>
             <strong>{total}</strong>
-          </button>
-          <button type="button" className="collection-item">
-            <span>最近加载</span>
+          </div>
+          <div className="collection-item">
+            <span>{t.recentlyLoaded}</span>
             <strong>{assets.length}</strong>
-          </button>
-          <button type="button" className="collection-item">
-            <span>真实写实</span>
+          </div>
+          <div className="collection-item">
+            <span>{t.realistic}</span>
             <strong>{realisticCount}</strong>
-          </button>
-          <button type="button" className="collection-item">
-            <span>美少女动漫</span>
+          </div>
+          <div className="collection-item">
+            <span>{t.animeBishoujo}</span>
             <strong>{animeCount}</strong>
-          </button>
+          </div>
         </aside>
 
         <section className="asset-board panel">
           <div className="asset-toolbar">
-            <div className="asset-search">Search assets and styles...</div>
+            <div className="asset-search">{t.searchAssets}</div>
             <div className="asset-filters">
-              <button type="button" className="is-active">All</button>
-              <button type="button">Generated</button>
-              <button type="button">真实写实</button>
-              <button type="button" onClick={onRefresh}>{loading ? 'Loading...' : 'Refresh'}</button>
+              <button type="button" onClick={onRefresh}>{loading ? t.loading : t.refresh}</button>
             </div>
           </div>
 
           {error ? <p className="asset-error">{error}</p> : null}
           {loading && !assets.length ? (
             <div className="result-empty result-grid-empty">
-              <strong>Loading assets</strong>
-              <span>Fetching generated assets from the database.</span>
+              <strong>{t.loadingAssets}</strong>
+              <span>{t.loadingAssetsHint}</span>
             </div>
           ) : assets.length ? (
             <div className="asset-grid">
               {assets.map((asset) => (
                 <article
                   key={asset.id}
-                  className={`asset-card ${selectedAsset?.id === asset.id ? 'is-active' : ''}`}
+                  className={`asset-card ${activeAsset?.id === asset.id ? 'is-active' : ''}`}
                 >
-                  <button type="button" className="asset-card-main" onClick={() => setSelectedAssetId(asset.id)}>
+                  <button type="button" className="asset-card-main" onClick={() => setActiveAssetId(asset.id)}>
                     <img src={imageURL(asset.url)} alt="" />
                     <div className="asset-card-body">
-                      <div>
-                        <h3>Generated image</h3>
-                        <span>{asset.style_name} · {asset.aspect_ratio} · {formatDate(asset.created_at)}</span>
-                      </div>
-                      <strong>{asset.status}</strong>
+                      <span>{asset.style_name} · {asset.aspect_ratio}</span>
+                      <strong>{formatDate(asset.created_at)}</strong>
                     </div>
                   </button>
                   <a
                     className="asset-card-action asset-card-download"
                     href={`${API_BASE_URL}/api/assets/${asset.id}/download`}
-                    title="Download"
-                    aria-label="Download asset"
+                    title={t.download}
+                    aria-label={t.download}
                     onClick={(event) => event.stopPropagation()}
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -983,9 +1116,26 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                   </a>
                   <button
                     type="button"
+                    className={`asset-card-action asset-copy-prompt ${copiedAssetId === asset.id ? 'is-copied' : ''}`}
+                    title={copiedAssetId === asset.id ? t.copied : t.copyPrompt}
+                    aria-label={copiedAssetId === asset.id ? t.promptCopied : t.copyPrompt}
+                    disabled={!asset.prompt}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      copyPrompt(asset).catch(() => setCopiedAssetId('copy-error'));
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M8 7h10v13H8V7Zm2 2v9h6V9h-6Z" />
+                      <path d="M5 4h10v2H7v10H5V4Z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
                     className={`asset-card-action asset-delete-icon ${deletingAssetId === asset.id ? 'is-deleting' : ''}`}
-                    title={deletingAssetId === asset.id ? 'Deleting' : 'Delete'}
-                    aria-label={deletingAssetId === asset.id ? 'Deleting asset' : 'Delete asset'}
+                    title={deletingAssetId === asset.id ? t.deleting : t.delete}
+                    aria-label={deletingAssetId === asset.id ? t.deletingAsset : t.deleteAsset}
                     disabled={deletingAssetId === asset.id}
                     onClick={(event) => {
                       event.preventDefault();
@@ -1002,71 +1152,67 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                       </svg>
                     )}
                   </button>
-                  <button
-                    type="button"
-                    className="asset-copy-prompt"
-                    disabled={!asset.prompt}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      copyPrompt(asset).catch(() => setCopiedAssetId('copy-error'));
-                    }}
-                  >
-                    {copiedAssetId === asset.id ? 'Copied' : 'Copy prompt'}
-                  </button>
                 </article>
               ))}
             </div>
           ) : (
             <div className="result-empty result-grid-empty">
-              <strong>No assets yet</strong>
-              <span>Generate images first. Completed results will be saved here automatically.</span>
+              <strong>{t.noAssets}</strong>
+              <span>{t.noAssetsHint}</span>
             </div>
           )}
         </section>
 
-        <aside className="asset-detail panel">
-          <span className="eyebrow">Selected Asset</span>
-          {selectedAsset ? (
-            <>
-              <div className="asset-preview">
-                <img src={imageURL(selectedAsset.url)} alt="" />
-                <a
-                  className="asset-download-icon"
-                  href={`${API_BASE_URL}/api/assets/${selectedAsset.id}/download`}
-                  title="Download"
-                  aria-label="Download asset"
-                >
-                  ↓
-                </a>
-              </div>
-              <div className="asset-detail-heading">
-                <h2>Generated image</h2>
-                <button
-                  type="button"
-                  className="asset-copy-prompt asset-copy-prompt-detail"
-                  disabled={!selectedAsset.prompt}
-                  onClick={() => copyPrompt(selectedAsset).catch(() => setCopiedAssetId('copy-error'))}
-                >
-                  {copiedAssetId === selectedAsset.id ? 'Copied' : 'Copy prompt'}
-                </button>
-              </div>
-              <div className="asset-meta-list">
-                <span>Style <strong>{selectedAsset.style_name}</strong></span>
-                <span>Ratio <strong>{selectedAsset.aspect_ratio}</strong></span>
-                <span>Size <strong>{selectedAsset.width}x{selectedAsset.height}</strong></span>
-                <span>Seed <strong>{selectedAsset.seed}</strong></span>
-                <span>Created <strong>{formatDate(selectedAsset.created_at)}</strong></span>
-              </div>
-            </>
-          ) : (
-            <div className="selected-empty">
-              <strong>No asset selected</strong>
-              <span>Generated assets will appear here after the first completed job.</span>
-            </div>
-          )}
-        </aside>
       </div>
+
+      {activeAsset ? (
+        <div className="asset-modal" role="dialog" aria-modal="true" aria-label={t.assetDetail} onClick={() => setActiveAssetId('')}>
+          <div className="asset-modal-panel panel" onClick={(event) => event.stopPropagation()}>
+            <div className="asset-modal-header">
+              <div>
+                <span className="eyebrow">{t.assetDetail}</span>
+                <h2>{t.generatedImage}</h2>
+              </div>
+              <button type="button" className="asset-modal-close" aria-label={t.closeAssetDetail} onClick={() => setActiveAssetId('')}>
+                ×
+              </button>
+            </div>
+
+            <div className="asset-preview">
+              <img src={imageURL(activeAsset.url)} alt="" />
+              <a
+                className="asset-download-icon"
+                href={`${API_BASE_URL}/api/assets/${activeAsset.id}/download`}
+                title={t.download}
+                aria-label={t.download}
+              >
+                ↓
+              </a>
+              <button
+                type="button"
+                className={`asset-copy-prompt-icon ${copiedAssetId === activeAsset.id ? 'is-copied' : ''}`}
+                title={copiedAssetId === activeAsset.id ? t.copied : t.copyPrompt}
+                aria-label={copiedAssetId === activeAsset.id ? t.promptCopied : t.copyPrompt}
+                disabled={!activeAsset.prompt}
+                onClick={() => copyPrompt(activeAsset).catch(() => setCopiedAssetId('copy-error'))}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 7h10v13H8V7Zm2 2v9h6V9h-6Z" />
+                  <path d="M5 4h10v2H7v10H5V4Z" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="asset-meta-list">
+              <span>{t.style} <strong>{activeAsset.style_name}</strong></span>
+              <span>{t.ratio} <strong>{activeAsset.aspect_ratio}</strong></span>
+              <span>{t.size} <strong>{activeAsset.width}x{activeAsset.height}</strong></span>
+              <span>{t.seed} <strong>{activeAsset.seed}</strong></span>
+              <span>{t.created} <strong>{formatDate(activeAsset.created_at)}</strong></span>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
