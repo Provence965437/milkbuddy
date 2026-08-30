@@ -14,6 +14,24 @@ function imageURL(value) {
   return `${API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
+async function copyText(value) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-1000px';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+}
+
 const stylePacks = [
   { id: 'anime_bishoujo', name: '美少女动漫', count: 1, image: '/assets/portrait-royal.png' },
   { id: 'anime_bishoujo_ultimate', name: '美少女(3d)', count: 1, image: '/assets/portrait-royal.png' },
@@ -535,13 +553,20 @@ export function App() {
         <section className="composer-column panel">
           <div className="composer-header">
             <h1>Describe the image you want to create</h1>
-            <button type="button" className="text-button">
-              Reset
-            </button>
           </div>
 
           <div className="field-group prompt-field">
-            <span className="field-label">Prompt</span>
+            <div className="field-label-row">
+              <span className="field-label">Prompt</span>
+              <button
+                type="button"
+                className="prompt-clear-button"
+                disabled={!prompt}
+                onClick={() => setPrompt('')}
+              >
+                Clear
+              </button>
+            </div>
             <div className={`prompt-input-wrap ${generationMode === 'image-to-image' ? 'has-reference-upload' : ''}`}>
               <textarea
                 value={prompt}
@@ -840,9 +865,19 @@ function AuthPage({
 
 function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, deletingAssetId }) {
   const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [copiedAssetId, setCopiedAssetId] = useState('');
   const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? assets[0];
   const animeCount = assets.filter((asset) => asset.style_id === 'anime_bishoujo').length;
   const realisticCount = assets.filter((asset) => asset.style_id === 'ultimate_bishoujo').length;
+
+  const copyPrompt = async (asset) => {
+    if (!asset?.prompt) {
+      return;
+    }
+    await copyText(asset.prompt);
+    setCopiedAssetId(asset.id);
+    window.setTimeout(() => setCopiedAssetId(''), 1600);
+  };
 
   useEffect(() => {
     if (selectedAssetId && !assets.some((asset) => asset.id === selectedAssetId)) {
@@ -902,7 +937,7 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
 
         <section className="asset-board panel">
           <div className="asset-toolbar">
-            <div className="asset-search">Search assets, prompts, styles...</div>
+            <div className="asset-search">Search assets and styles...</div>
             <div className="asset-filters">
               <button type="button" className="is-active">All</button>
               <button type="button">Generated</button>
@@ -928,7 +963,7 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                     <img src={imageURL(asset.url)} alt="" />
                     <div className="asset-card-body">
                       <div>
-                        <h3>{asset.prompt || 'Generated image'}</h3>
+                        <h3>Generated image</h3>
                         <span>{asset.style_name} · {asset.aspect_ratio} · {formatDate(asset.created_at)}</span>
                       </div>
                       <strong>{asset.status}</strong>
@@ -967,6 +1002,18 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                       </svg>
                     )}
                   </button>
+                  <button
+                    type="button"
+                    className="asset-copy-prompt"
+                    disabled={!asset.prompt}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      copyPrompt(asset).catch(() => setCopiedAssetId('copy-error'));
+                    }}
+                  >
+                    {copiedAssetId === asset.id ? 'Copied' : 'Copy prompt'}
+                  </button>
                 </article>
               ))}
             </div>
@@ -993,8 +1040,17 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                   ↓
                 </a>
               </div>
-              <h2>{selectedAsset.prompt || 'Generated image'}</h2>
-              <p>{selectedAsset.storage_key ? `R2 object: ${selectedAsset.storage_key}` : 'This asset is stored in the database and available for reuse.'}</p>
+              <div className="asset-detail-heading">
+                <h2>Generated image</h2>
+                <button
+                  type="button"
+                  className="asset-copy-prompt asset-copy-prompt-detail"
+                  disabled={!selectedAsset.prompt}
+                  onClick={() => copyPrompt(selectedAsset).catch(() => setCopiedAssetId('copy-error'))}
+                >
+                  {copiedAssetId === selectedAsset.id ? 'Copied' : 'Copy prompt'}
+                </button>
+              </div>
               <div className="asset-meta-list">
                 <span>Style <strong>{selectedAsset.style_name}</strong></span>
                 <span>Ratio <strong>{selectedAsset.aspect_ratio}</strong></span>
