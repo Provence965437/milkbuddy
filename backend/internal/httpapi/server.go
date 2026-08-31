@@ -244,12 +244,16 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	items, err := s.assets.List(r.Context(), limit)
-	if err != nil {
-		slog.Warn("list assets failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to list assets")
-		return
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+	if pageSize == 0 {
+		pageSize, _ = strconv.Atoi(r.URL.Query().Get("limit"))
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 24
 	}
 	total, err := s.assets.Count(r.Context())
 	if err != nil {
@@ -257,7 +261,30 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to count assets")
 		return
 	}
-	writeJSON(w, http.StatusOK, assets.ListResponse{Assets: items, Total: total})
+	totalPages := 0
+	if total > 0 {
+		totalPages = (total + pageSize - 1) / pageSize
+		if page > totalPages {
+			page = totalPages
+		}
+	}
+	offset := (page - 1) * pageSize
+
+	items, err := s.assets.ListPage(r.Context(), pageSize, offset)
+	if err != nil {
+		slog.Warn("list assets failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to list assets")
+		return
+	}
+	writeJSON(w, http.StatusOK, assets.ListResponse{
+		Assets:     items,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+		HasPrev:    page > 1,
+		HasNext:    page < totalPages,
+	})
 }
 
 func (s *Server) getAsset(w http.ResponseWriter, r *http.Request) {

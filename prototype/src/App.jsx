@@ -39,11 +39,27 @@ const copyIcon = (
   </svg>
 );
 
+const navIcons = {
+  workspace: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 5h16v10H4V5Zm2 2v6h12V7H6Z" />
+      <path d="M8 18h8v2H8v-2Zm3-3h2v4h-2v-4Z" />
+    </svg>
+  ),
+  assets: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Z" />
+      <path d="M8 14l2.5-3 2 2.4L14 12l2 3H8Zm1-6h3v2H9V8Z" />
+    </svg>
+  ),
+};
+
 const text = {
   zh: {
     checkingSession: '检查登录状态',
-    loadingAccount: '正在加载你的 MilkBuddy 账号状态',
+    loadingAccount: '正在加载你的 ConceiveBody 账号状态',
     brandSubtitle: 'AI 图像创作',
+    navigation: '导航',
     workspace: '工作台',
     assets: '资产',
     credits: '积分',
@@ -82,7 +98,7 @@ const text = {
     download: '下载',
     recent: '最近',
     recentGenerated: '最近生成',
-    accountEyebrow: 'MilkBuddy 账号',
+    accountEyebrow: 'ConceiveBody 账号',
     createAccountTitle: '创建你的创作账号',
     loginTitle: '登录你的创作账号',
     emailLogin: '邮箱登录',
@@ -108,6 +124,11 @@ const text = {
     all: '全部',
     generated: '已生成',
     refresh: '刷新',
+    blurPreview: '模糊预览',
+    clearPreview: '清晰预览',
+    previousPage: '上一页',
+    nextPage: '下一页',
+    pageStatus: (page, totalPages) => `第 ${page} / ${Math.max(totalPages, 1)} 页`,
     loading: '加载中...',
     loadingAssets: '加载资产中',
     loadingAssetsHint: '正在从数据库读取生成资产。',
@@ -136,8 +157,9 @@ const text = {
   },
   en: {
     checkingSession: 'Checking session',
-    loadingAccount: 'Loading your MilkBuddy account state.',
+    loadingAccount: 'Loading your ConceiveBody account state.',
     brandSubtitle: 'AI Image Studio',
+    navigation: 'Navigation',
     workspace: 'Workspace',
     assets: 'Assets',
     credits: 'Credits',
@@ -176,7 +198,7 @@ const text = {
     download: 'Download',
     recent: 'Recent',
     recentGenerated: 'Recent generations',
-    accountEyebrow: 'MilkBuddy Account',
+    accountEyebrow: 'ConceiveBody Account',
     createAccountTitle: 'Create your account',
     loginTitle: 'Login to your account',
     emailLogin: 'Email login',
@@ -202,6 +224,11 @@ const text = {
     all: 'All',
     generated: 'Generated',
     refresh: 'Refresh',
+    blurPreview: 'Blur preview',
+    clearPreview: 'Clear preview',
+    previousPage: 'Previous',
+    nextPage: 'Next',
+    pageStatus: (page, totalPages) => `Page ${page} / ${Math.max(totalPages, 1)}`,
     loading: 'Loading...',
     loadingAssets: 'Loading assets',
     loadingAssetsHint: 'Fetching generated assets from the database.',
@@ -231,9 +258,9 @@ const text = {
 };
 
 const stylePacks = [
-  { id: 'anime_bishoujo', name: { zh: '美少女动漫', en: 'Anime Girl' }, count: 1, image: '/assets/milkbuddy-style-anime.png' },
-  { id: 'anime_bishoujo_ultimate', name: { zh: '美少女(3d)', en: 'Anime Girl (3D)' }, count: 1, image: '/assets/milkbuddy-style-anime-3d.png' },
-  { id: 'ultimate_bishoujo', name: { zh: '真实写实', en: 'Realistic' }, count: 1, image: '/assets/milkbuddy-style-realistic.png' },
+  { id: 'anime_bishoujo', name: { zh: '美少女动漫', en: 'Anime Girl' }, count: 1, image: '/assets/conceivebody-style-anime.png' },
+  { id: 'anime_bishoujo_ultimate', name: { zh: '美少女(3d)', en: 'Anime Girl (3D)' }, count: 1, image: '/assets/conceivebody-style-anime-3d.png' },
+  { id: 'ultimate_bishoujo', name: { zh: '真实写实', en: 'Realistic' }, count: 1, image: '/assets/conceivebody-style-realistic.png' },
 ];
 
 const timelineCards = [
@@ -270,6 +297,9 @@ export function App() {
   const [pendingImageCount, setPendingImageCount] = useState(Number(imageCount));
   const [assets, setAssets] = useState([]);
   const [assetTotal, setAssetTotal] = useState(0);
+  const [assetPage, setAssetPage] = useState(1);
+  const [assetPageSize] = useState(24);
+  const [assetTotalPages, setAssetTotalPages] = useState(0);
   const [assetError, setAssetError] = useState('');
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [deletingAssetId, setDeletingAssetId] = useState('');
@@ -278,14 +308,19 @@ export function App() {
   const recentImages = assets.length ? assets.map((asset) => imageURL(asset.url)) : timelineCards;
   const t = text[language];
 
-  const loadAssets = async () => {
+  const loadAssets = async (page = assetPage) => {
     if (!authUser) {
       return;
     }
+    const nextPage = Math.max(1, page);
     setAssetsLoading(true);
     setAssetError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/assets?limit=60`, { credentials: 'include' });
+      const params = new URLSearchParams({
+        page: String(nextPage),
+        page_size: String(assetPageSize),
+      });
+      const response = await fetch(`${API_BASE_URL}/api/assets?${params}`, { credentials: 'include' });
       const payload = await response.json();
       if (!response.ok) {
         if (response.status === 401) {
@@ -296,6 +331,8 @@ export function App() {
       }
       setAssets(payload.assets ?? []);
       setAssetTotal(payload.total ?? 0);
+      setAssetPage(payload.page ?? nextPage);
+      setAssetTotalPages(payload.total_pages ?? 0);
     } catch (error) {
       setAssetError(error.message);
     } finally {
@@ -468,8 +505,11 @@ export function App() {
       throw new Error(payload.error || t.deleteAssetError);
       }
       setAssets((items) => items.filter((asset) => asset.id !== assetId));
-      setAssetTotal((count) => Math.max(0, count - 1));
-      loadAssets();
+      const nextTotal = Math.max(0, assetTotal - 1);
+      const nextTotalPages = Math.ceil(nextTotal / assetPageSize);
+      const nextPage = Math.min(assetPage, Math.max(1, nextTotalPages));
+      setAssetTotal(nextTotal);
+      loadAssets(nextPage);
     } catch (error) {
       setAssetError(error.message);
     } finally {
@@ -497,7 +537,7 @@ export function App() {
         }
         setGenerationJob(payload);
         if (payload.status === 'completed') {
-          loadAssets();
+          loadAssets(1);
         }
       } catch (error) {
         setGenerationError(error.message);
@@ -530,10 +570,12 @@ export function App() {
 
   useEffect(() => {
     if (authUser) {
-      loadAssets();
+      loadAssets(1);
     } else {
       setAssets([]);
       setAssetTotal(0);
+      setAssetPage(1);
+      setAssetTotalPages(0);
     }
   }, [authUser]);
 
@@ -562,29 +604,34 @@ export function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand-block">
-          <div className="brand-mark">MilkBuddy</div>
+          <div className="brand-mark">ConceiveBody</div>
           <div className="brand-subtitle">{t.brandSubtitle}</div>
         </div>
 
         <div className="status-strip">
           {authUser ? (
-            <nav className={`top-nav ${currentPage === 'assets' ? 'is-assets-page' : ''}`} aria-label="Primary">
-              <span className="top-nav-indicator" aria-hidden="true" />
-              <button
-                type="button"
-                className={currentPage === 'workspace' ? 'is-active' : ''}
-                onClick={() => setCurrentPage('workspace')}
-              >
-                {t.workspace}
-              </button>
-              <button
-                type="button"
-                className={currentPage === 'assets' ? 'is-active' : ''}
-                onClick={() => setCurrentPage('assets')}
-              >
-                {t.assets}
-              </button>
-            </nav>
+            <div className="nav-cluster">
+              <span className="nav-title">{t.navigation}</span>
+              <nav className={`top-nav ${currentPage === 'assets' ? 'is-assets-page' : ''}`} aria-label="Primary">
+                <span className="top-nav-indicator" aria-hidden="true" />
+                <button
+                  type="button"
+                  className={currentPage === 'workspace' ? 'is-active' : ''}
+                  onClick={() => setCurrentPage('workspace')}
+                >
+                  {navIcons.workspace}
+                  <span>{t.workspace}</span>
+                </button>
+                <button
+                  type="button"
+                  className={currentPage === 'assets' ? 'is-active' : ''}
+                  onClick={() => setCurrentPage('assets')}
+                >
+                  {navIcons.assets}
+                  <span>{t.assets}</span>
+                </button>
+              </nav>
+            </div>
           ) : null}
           {authUser ? (
             <>
@@ -657,9 +704,12 @@ export function App() {
         <AssetsPage
           assets={assets}
           total={assetTotal}
+          page={assetPage}
+          totalPages={assetTotalPages}
           loading={assetsLoading}
           error={assetError}
           onRefresh={loadAssets}
+          onPageChange={loadAssets}
           onDeleteAsset={deleteAsset}
           deletingAssetId={deletingAssetId}
           t={t}
@@ -1007,9 +1057,22 @@ function AuthPage({
   );
 }
 
-function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, deletingAssetId, t }) {
+function AssetsPage({
+  assets,
+  total,
+  page,
+  totalPages,
+  loading,
+  error,
+  onRefresh,
+  onPageChange,
+  onDeleteAsset,
+  deletingAssetId,
+  t,
+}) {
   const [activeAssetId, setActiveAssetId] = useState('');
   const [copiedAssetId, setCopiedAssetId] = useState('');
+  const [blurAssets, setBlurAssets] = useState(true);
   const activeAsset = assets.find((asset) => asset.id === activeAssetId);
   const animeCount = assets.filter((asset) => asset.style_id === 'anime_bishoujo').length;
   const realisticCount = assets.filter((asset) => asset.style_id === 'ultimate_bishoujo').length;
@@ -1078,7 +1141,18 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
           <div className="asset-toolbar">
             <div className="asset-search">{t.searchAssets}</div>
             <div className="asset-filters">
-              <button type="button" onClick={onRefresh}>{loading ? t.loading : t.refresh}</button>
+              <button
+                type="button"
+                className={`asset-blur-toggle ${blurAssets ? 'is-on' : ''}`}
+                aria-pressed={blurAssets}
+                onClick={() => setBlurAssets((value) => !value)}
+              >
+                <span className="asset-blur-toggle-track" aria-hidden="true">
+                  <span />
+                </span>
+                {blurAssets ? t.blurPreview : t.clearPreview}
+              </button>
+              <button type="button" onClick={() => onRefresh(page)}>{loading ? t.loading : t.refresh}</button>
             </div>
           </div>
 
@@ -1096,7 +1170,7 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
                   className={`asset-card ${activeAsset?.id === asset.id ? 'is-active' : ''}`}
                 >
                   <button type="button" className="asset-card-main" onClick={() => setActiveAssetId(asset.id)}>
-                    <img src={imageURL(asset.url)} alt="" />
+                    <img className={`asset-image ${blurAssets ? 'is-blurred' : ''}`} src={imageURL(asset.url)} alt="" />
                     <div className="asset-card-body">
                       <span>{asset.style_name} · {asset.aspect_ratio}</span>
                       <strong>{formatDate(asset.created_at)}</strong>
@@ -1161,6 +1235,24 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
               <span>{t.noAssetsHint}</span>
             </div>
           )}
+
+          <div className="asset-pagination">
+            <button
+              type="button"
+              disabled={loading || page <= 1}
+              onClick={() => onPageChange(page - 1)}
+            >
+              {t.previousPage}
+            </button>
+            <span>{t.pageStatus(page, totalPages)}</span>
+            <button
+              type="button"
+              disabled={loading || page >= Math.max(totalPages, 1)}
+              onClick={() => onPageChange(page + 1)}
+            >
+              {t.nextPage}
+            </button>
+          </div>
         </section>
 
       </div>
@@ -1179,7 +1271,7 @@ function AssetsPage({ assets, total, loading, error, onRefresh, onDeleteAsset, d
             </div>
 
             <div className="asset-preview">
-              <img src={imageURL(activeAsset.url)} alt="" />
+              <img className={`asset-image ${blurAssets ? 'is-blurred' : ''}`} src={imageURL(activeAsset.url)} alt="" />
               <a
                 className="asset-download-icon"
                 href={`${API_BASE_URL}/api/assets/${activeAsset.id}/download`}

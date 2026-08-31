@@ -29,7 +29,7 @@ type R2Config struct {
 func Load() Config {
 	return Config{
 		Addr:         env("MILKBUDDY_ADDR", ":8080"),
-		ComfyBaseURL: strings.TrimRight(env("COMFY_BASE_URL", "https://u1021121-bfff-8c327e31.westc.seetacloud.com:8443"), "/"),
+		ComfyBaseURL: strings.TrimRight(env("COMFY_BASE_URL", "https://u1021121-b01e-4eecaeb5.westc.seetacloud.com:8443"), "/"),
 		WorkflowPath: env("COMFY_WORKFLOW_PATH", "configs/workflows/z_image_turbo.json"),
 		DatabasePath: env("DATABASE_PATH", "data/milkbuddy.db"),
 		HTTPTimeout:  time.Duration(envInt("HTTP_TIMEOUT_SECONDS", 60)) * time.Second,

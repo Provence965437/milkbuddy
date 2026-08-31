@@ -40,6 +40,11 @@ type CreateAsset struct {
 }
 
 type ListResponse struct {
-	Assets []Asset `json:"assets"`
-	Total  int     `json:"total"`
+	Assets     []Asset `json:"assets"`
+	Total      int     `json:"total"`
+	Page       int     `json:"page"`
+	PageSize   int     `json:"page_size"`
+	TotalPages int     `json:"total_pages"`
+	HasPrev    bool    `json:"has_prev"`
+	HasNext    bool    `json:"has_next"`
 }

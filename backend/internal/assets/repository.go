@@ -77,15 +77,22 @@ INSERT INTO assets (
 }
 
 func (r *Repository) List(ctx context.Context, limit int) ([]Asset, error) {
+	return r.ListPage(ctx, limit, 0)
+}
+
+func (r *Repository) ListPage(ctx context.Context, limit, offset int) ([]Asset, error) {
 	if limit <= 0 || limit > 100 {
-		limit = 60
+		limit = 24
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	rows, err := r.db.QueryContext(ctx, `
 SELECT id, generation_id, image_index, url, storage_key, filename, style_id,
 	aspect_ratio, quality, width, height, seed, prompt, status, created_at
 FROM assets
 ORDER BY created_at DESC
-LIMIT ?`, limit)
+LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
