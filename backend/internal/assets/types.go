@@ -4,6 +4,7 @@ import "time"
 
 type Asset struct {
 	ID           string    `json:"id"`
+	UserID       string    `json:"-"`
 	GenerationID string    `json:"generation_id"`
 	ImageIndex   int       `json:"image_index"`
 	URL          string    `json:"url"`
@@ -23,6 +24,7 @@ type Asset struct {
 
 type CreateAsset struct {
 	ID           string
+	UserID       string
 	GenerationID string
 	ImageIndex   int
 	URL          string

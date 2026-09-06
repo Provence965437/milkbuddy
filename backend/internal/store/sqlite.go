@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS assets (
 	id TEXT PRIMARY KEY,
+	user_id TEXT,
 	generation_id TEXT NOT NULL,
 	image_index INTEGER NOT NULL,
 	url TEXT NOT NULL,
@@ -79,7 +80,18 @@ CREATE TABLE IF NOT EXISTS assets (
 	seed INTEGER NOT NULL,
 	prompt TEXT NOT NULL,
 	status TEXT NOT NULL DEFAULT 'generated',
-	created_at TEXT NOT NULL
+	created_at TEXT NOT NULL,
+	FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+	id TEXT PRIMARY KEY,
+	user_id TEXT,
+	event_name TEXT NOT NULL,
+	page TEXT,
+	metadata TEXT,
+	created_at TEXT NOT NULL,
+	FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -87,6 +99,9 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_assets_created_at ON assets(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_assets_style_id ON assets(style_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_event_name ON analytics_events(event_name);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id);
 `)
 	if err != nil {
 		return err
@@ -94,7 +109,14 @@ CREATE INDEX IF NOT EXISTS idx_assets_style_id ON assets(style_id);
 	if err := db.ensureColumn(ctx, "users", "credits", "INTEGER NOT NULL DEFAULT 100"); err != nil {
 		return err
 	}
-	return db.ensureColumn(ctx, "users", "is_admin", "INTEGER NOT NULL DEFAULT 0")
+	if err := db.ensureColumn(ctx, "users", "is_admin", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := db.ensureColumn(ctx, "assets", "user_id", "TEXT"); err != nil {
+		return err
+	}
+	_, err = db.sql.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id);`)
+	return err
 }
 
 func (db *DB) ensureColumn(ctx context.Context, table, column, definition string) error {

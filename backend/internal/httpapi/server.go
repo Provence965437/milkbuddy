@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"milkbuddy/backend/internal/analytics"
 	"milkbuddy/backend/internal/assets"
 	"milkbuddy/backend/internal/auth"
 	"milkbuddy/backend/internal/generation"
@@ -22,6 +23,7 @@ type Server struct {
 	auth        *auth.Service
 	generations *generation.Service
 	assets      *assets.Repository
+	analytics   *analytics.Repository
 	objects     objectDeleter
 	corsOrigin  string
 	mux         *http.ServeMux
@@ -31,11 +33,12 @@ type objectDeleter interface {
 	Delete(context.Context, string) error
 }
 
-func NewServer(authService *auth.Service, generations *generation.Service, assetRepo *assets.Repository, objects objectDeleter, corsOrigin string) *Server {
+func NewServer(authService *auth.Service, generations *generation.Service, assetRepo *assets.Repository, analyticsRepo *analytics.Repository, objects objectDeleter, corsOrigin string) *Server {
 	s := &Server{
 		auth:        authService,
 		generations: generations,
 		assets:      assetRepo,
+		analytics:   analyticsRepo,
 		objects:     objects,
 		corsOrigin:  corsOrigin,
 		mux:         http.NewServeMux(),
@@ -54,6 +57,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/login", s.login)
 	s.mux.HandleFunc("POST /api/auth/logout", s.logout)
 	s.mux.HandleFunc("GET /api/auth/me", s.me)
+	s.mux.HandleFunc("POST /api/events", s.trackEvent)
+	s.mux.HandleFunc("GET /api/admin/metrics", s.adminMetrics)
 	s.mux.HandleFunc("GET /api/assets", s.listAssets)
 	s.mux.HandleFunc("GET /api/assets/{id}", s.getAsset)
 	s.mux.HandleFunc("DELETE /api/assets/{id}", s.deleteAsset)
@@ -79,6 +84,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	s.track(r, user.ID, "user_registered", "auth", nil)
 	setSessionCookie(w, session)
 	writeJSON(w, http.StatusCreated, auth.AuthResponse{User: user})
 }
@@ -94,6 +100,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
+	s.track(r, user.ID, "user_logged_in", "auth", nil)
 	setSessionCookie(w, session)
 	writeJSON(w, http.StatusOK, auth.AuthResponse{User: user})
 }
@@ -115,6 +122,43 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, auth.AuthResponse{User: user})
 }
 
+func (s *Server) trackEvent(w http.ResponseWriter, r *http.Request) {
+	var req analytics.TrackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	userID := ""
+	if user, ok := s.currentUser(r); ok {
+		userID = user.ID
+	}
+	s.track(r, userID, req.EventName, req.Page, req.Metadata)
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) adminMetrics(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if !user.IsAdmin {
+		writeError(w, http.StatusForbidden, "admin access required")
+		return
+	}
+	if s.analytics == nil {
+		writeError(w, http.StatusServiceUnavailable, "analytics is not configured")
+		return
+	}
+	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
+	metrics, err := s.analytics.Metrics(r.Context(), days)
+	if err != nil {
+		slog.Warn("load admin metrics failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to load metrics")
+		return
+	}
+	writeJSON(w, http.StatusOK, metrics)
+}
+
 func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
 	user, ok := s.requireAuth(w, r)
 	if !ok {
@@ -126,6 +170,7 @@ func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
+	req.UserID = user.ID
 
 	cost, err := generation.CreditCost(req)
 	if err != nil {
@@ -141,12 +186,28 @@ func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
 		}
 		creditsRemaining = updatedUser.Credits
 	}
+	chargedCredits := cost
+	if user.IsAdmin {
+		chargedCredits = 0
+	}
+	s.track(r, user.ID, "generation_requested", "workspace", map[string]interface{}{
+		"mode":        "text-to-image",
+		"style_id":    req.StyleID,
+		"image_count": req.ImageCount,
+		"credits":     chargedCredits,
+		"is_admin":    user.IsAdmin,
+	})
 
 	job, err := s.generations.Create(r.Context(), req)
 	if err != nil {
 		if !user.IsAdmin {
 			s.auth.AddCredits(user.ID, cost)
 		}
+		s.track(r, user.ID, "generation_failed", "workspace", map[string]interface{}{
+			"mode":     "text-to-image",
+			"style_id": req.StyleID,
+			"error":    err.Error(),
+		})
 		slog.Warn("create generation failed", "error", err)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -199,6 +260,7 @@ func (s *Server) createImageToImageGeneration(w http.ResponseWriter, r *http.Req
 
 	req := generation.ImageToImageRequest{
 		CreateRequest: generation.CreateRequest{
+			UserID:      user.ID,
 			Prompt:      r.FormValue("prompt"),
 			StyleID:     r.FormValue("style_id"),
 			AspectRatio: r.FormValue("aspect_ratio"),
@@ -225,12 +287,28 @@ func (s *Server) createImageToImageGeneration(w http.ResponseWriter, r *http.Req
 		}
 		creditsRemaining = updatedUser.Credits
 	}
+	chargedCredits := cost
+	if user.IsAdmin {
+		chargedCredits = 0
+	}
+	s.track(r, user.ID, "generation_requested", "workspace", map[string]interface{}{
+		"mode":        "image-to-image",
+		"style_id":    req.StyleID,
+		"image_count": req.ImageCount,
+		"credits":     chargedCredits,
+		"is_admin":    user.IsAdmin,
+	})
 
 	job, err := s.generations.CreateImageToImage(r.Context(), req)
 	if err != nil {
 		if !user.IsAdmin {
 			s.auth.AddCredits(user.ID, cost)
 		}
+		s.track(r, user.ID, "generation_failed", "workspace", map[string]interface{}{
+			"mode":     "image-to-image",
+			"style_id": req.StyleID,
+			"error":    err.Error(),
+		})
 		slog.Warn("create image-to-image generation failed", "error", err)
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -240,7 +318,8 @@ func (s *Server) createImageToImageGeneration(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAuth(w, r); !ok {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
 		return
 	}
 
@@ -255,7 +334,7 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 	if pageSize <= 0 || pageSize > 100 {
 		pageSize = 24
 	}
-	total, err := s.assets.Count(r.Context())
+	total, err := s.assets.CountByUser(r.Context(), user.ID)
 	if err != nil {
 		slog.Warn("count assets failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to count assets")
@@ -270,7 +349,7 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 	}
 	offset := (page - 1) * pageSize
 
-	items, err := s.assets.ListPage(r.Context(), pageSize, offset)
+	items, err := s.assets.ListPageByUser(r.Context(), user.ID, pageSize, offset)
 	if err != nil {
 		slog.Warn("list assets failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to list assets")
@@ -288,11 +367,12 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getAsset(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAuth(w, r); !ok {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
 		return
 	}
 
-	asset, err := s.assets.Get(r.Context(), r.PathValue("id"))
+	asset, err := s.assets.GetByUser(r.Context(), r.PathValue("id"), user.ID)
 	if err != nil {
 		if errors.Is(err, assets.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "asset not found")
@@ -306,11 +386,12 @@ func (s *Server) getAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteAsset(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAuth(w, r); !ok {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
 		return
 	}
 
-	asset, err := s.assets.Get(r.Context(), r.PathValue("id"))
+	asset, err := s.assets.GetByUser(r.Context(), r.PathValue("id"), user.ID)
 	if err != nil {
 		if errors.Is(err, assets.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "asset not found")
@@ -325,7 +406,7 @@ func (s *Server) deleteAsset(w http.ResponseWriter, r *http.Request) {
 			slog.Warn("delete stored asset failed", "asset_id", asset.ID, "storage_key", asset.StorageKey, "error", err)
 		}
 	}
-	if err := s.assets.Delete(r.Context(), asset.ID); err != nil {
+	if err := s.assets.DeleteByUser(r.Context(), asset.ID, user.ID); err != nil {
 		if errors.Is(err, assets.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "asset not found")
 			return
@@ -338,11 +419,12 @@ func (s *Server) deleteAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAuth(w, r); !ok {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
 		return
 	}
 
-	asset, err := s.assets.Get(r.Context(), r.PathValue("id"))
+	asset, err := s.assets.GetByUser(r.Context(), r.PathValue("id"), user.ID)
 	if err != nil {
 		if errors.Is(err, assets.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "asset not found")
@@ -376,7 +458,8 @@ func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getGeneration(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAuth(w, r); !ok {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
 		return
 	}
 
@@ -390,17 +473,37 @@ func (s *Server) getGeneration(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "failed to query generation")
 		return
 	}
+	if job.UserID != user.ID {
+		writeError(w, http.StatusNotFound, "generation not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, job)
 }
 
 func (s *Server) getGenerationImage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireAuth(w, r); !ok {
+	user, ok := s.requireAuth(w, r)
+	if !ok {
 		return
 	}
 
 	index, err := strconv.Atoi(r.PathValue("index"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid image index")
+		return
+	}
+
+	job, err := s.generations.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		if errors.Is(err, generation.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "image not found")
+			return
+		}
+		slog.Warn("get generation for image failed", "error", err)
+		writeError(w, http.StatusBadGateway, "failed to query generation")
+		return
+	}
+	if job.UserID != user.ID {
+		writeError(w, http.StatusNotFound, "image not found")
 		return
 	}
 
@@ -508,4 +611,26 @@ func (s *Server) currentUser(r *http.Request) (auth.User, bool) {
 		return auth.User{}, false
 	}
 	return s.auth.UserBySession(cookie.Value)
+}
+
+func (s *Server) track(r *http.Request, userID, eventName, page string, metadata map[string]interface{}) {
+	if s.analytics == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
+	metadata["method"] = r.Method
+	metadata["path"] = r.URL.Path
+	if err := s.analytics.Track(ctx, analytics.Event{
+		UserID:    userID,
+		EventName: eventName,
+		Page:      page,
+		Metadata:  metadata,
+		CreatedAt: time.Now().UTC(),
+	}); err != nil {
+		slog.Warn("track analytics event failed", "event_name", eventName, "error", err)
+	}
 }

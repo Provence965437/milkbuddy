@@ -27,6 +27,7 @@ type AssetStore interface {
 
 type CreateAsset struct {
 	ID           string
+	UserID       string
 	GenerationID string
 	ImageIndex   int
 	URL          string
@@ -76,6 +77,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Job, error) {
 	now := time.Now().UTC()
 	job := &Job{
 		ID:        id,
+		UserID:    req.UserID,
 		Status:    StatusQueued,
 		Prompt:    req.Prompt,
 		Params:    params,
@@ -130,6 +132,7 @@ func (s *Service) CreateImageToImage(ctx context.Context, req ImageToImageReques
 	now := time.Now().UTC()
 	job := &Job{
 		ID:        id,
+		UserID:    req.UserID,
 		Status:    StatusQueued,
 		Prompt:    req.Prompt,
 		Params:    params,
@@ -328,6 +331,7 @@ func (s *Service) imagesFromOutputs(ctx context.Context, job *Job, outputs map[s
 			if s.assets != nil {
 				err := s.assets.Create(ctx, CreateAsset{
 					ID:           newID(),
+					UserID:       job.UserID,
 					GenerationID: job.ID,
 					ImageIndex:   index,
 					URL:          imageURL,

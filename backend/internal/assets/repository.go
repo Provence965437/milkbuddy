@@ -24,6 +24,7 @@ func NewRepository(provider SQLProvider) *Repository {
 func (r *Repository) Create(ctx context.Context, input generation.CreateAsset) error {
 	_, err := r.Insert(ctx, CreateAsset{
 		ID:           input.ID,
+		UserID:       input.UserID,
 		GenerationID: input.GenerationID,
 		ImageIndex:   input.ImageIndex,
 		URL:          input.URL,
@@ -51,10 +52,11 @@ func (r *Repository) Insert(ctx context.Context, input CreateAsset) (Asset, erro
 	}
 	_, err := r.db.ExecContext(ctx, `
 INSERT INTO assets (
-	id, generation_id, image_index, url, storage_key, filename, style_id,
+	id, user_id, generation_id, image_index, url, storage_key, filename, style_id,
 	aspect_ratio, quality, width, height, seed, prompt, status, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		input.ID,
+		nullable(input.UserID),
 		input.GenerationID,
 		input.ImageIndex,
 		input.URL,
@@ -80,19 +82,40 @@ func (r *Repository) List(ctx context.Context, limit int) ([]Asset, error) {
 	return r.ListPage(ctx, limit, 0)
 }
 
+func (r *Repository) ListByUser(ctx context.Context, userID string, limit int) ([]Asset, error) {
+	return r.ListPageByUser(ctx, userID, limit, 0)
+}
+
 func (r *Repository) ListPage(ctx context.Context, limit, offset int) ([]Asset, error) {
+	return r.listPage(ctx, "", limit, offset)
+}
+
+func (r *Repository) ListPageByUser(ctx context.Context, userID string, limit, offset int) ([]Asset, error) {
+	return r.listPage(ctx, userID, limit, offset)
+}
+
+func (r *Repository) listPage(ctx context.Context, userID string, limit, offset int) ([]Asset, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 24
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	rows, err := r.db.QueryContext(ctx, `
-SELECT id, generation_id, image_index, url, storage_key, filename, style_id,
+	query := `
+SELECT id, user_id, generation_id, image_index, url, storage_key, filename, style_id,
 	aspect_ratio, quality, width, height, seed, prompt, status, created_at
 FROM assets
+`
+	args := []interface{}{}
+	if userID != "" {
+		query += "WHERE user_id = ?\n"
+		args = append(args, userID)
+	}
+	query += `
 ORDER BY created_at DESC
-LIMIT ? OFFSET ?`, limit, offset)
+LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -110,16 +133,44 @@ LIMIT ? OFFSET ?`, limit, offset)
 }
 
 func (r *Repository) Get(ctx context.Context, id string) (Asset, error) {
-	row := r.db.QueryRowContext(ctx, `
-SELECT id, generation_id, image_index, url, storage_key, filename, style_id,
+	return r.get(ctx, id, "")
+}
+
+func (r *Repository) GetByUser(ctx context.Context, id, userID string) (Asset, error) {
+	return r.get(ctx, id, userID)
+}
+
+func (r *Repository) get(ctx context.Context, id, userID string) (Asset, error) {
+	query := `
+SELECT id, user_id, generation_id, image_index, url, storage_key, filename, style_id,
 	aspect_ratio, quality, width, height, seed, prompt, status, created_at
 FROM assets
-WHERE id = ?`, id)
+WHERE id = ?`
+	args := []interface{}{id}
+	if userID != "" {
+		query += " AND user_id = ?"
+		args = append(args, userID)
+	}
+	row := r.db.QueryRowContext(ctx, query, args...)
 	return scanAsset(row)
 }
 
 func (r *Repository) Delete(ctx context.Context, id string) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM assets WHERE id = ?`, id)
+	return r.delete(ctx, id, "")
+}
+
+func (r *Repository) DeleteByUser(ctx context.Context, id, userID string) error {
+	return r.delete(ctx, id, userID)
+}
+
+func (r *Repository) delete(ctx context.Context, id, userID string) error {
+	query := `DELETE FROM assets WHERE id = ?`
+	args := []interface{}{id}
+	if userID != "" {
+		query += ` AND user_id = ?`
+		args = append(args, userID)
+	}
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -134,8 +185,22 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 }
 
 func (r *Repository) Count(ctx context.Context) (int, error) {
+	return r.count(ctx, "")
+}
+
+func (r *Repository) CountByUser(ctx context.Context, userID string) (int, error) {
+	return r.count(ctx, userID)
+}
+
+func (r *Repository) count(ctx context.Context, userID string) (int, error) {
 	var count int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM assets`).Scan(&count); err != nil {
+	query := `SELECT COUNT(*) FROM assets`
+	args := []interface{}{}
+	if userID != "" {
+		query += ` WHERE user_id = ?`
+		args = append(args, userID)
+	}
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -150,8 +215,10 @@ type scanner interface {
 func scanAsset(row scanner) (Asset, error) {
 	var asset Asset
 	var createdAt string
+	var userID sql.NullString
 	err := row.Scan(
 		&asset.ID,
+		&userID,
 		&asset.GenerationID,
 		&asset.ImageIndex,
 		&asset.URL,
@@ -173,6 +240,7 @@ func scanAsset(row scanner) (Asset, error) {
 	if err != nil {
 		return Asset{}, err
 	}
+	asset.UserID = userID.String
 	parsed, err := time.Parse(time.RFC3339Nano, createdAt)
 	if err != nil {
 		return Asset{}, err
@@ -180,6 +248,13 @@ func scanAsset(row scanner) (Asset, error) {
 	asset.CreatedAt = parsed
 	asset.StyleName = StyleName(asset.StyleID)
 	return asset, nil
+}
+
+func nullable(value string) interface{} {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 func StyleName(styleID string) string {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"milkbuddy/backend/internal/analytics"
 	"milkbuddy/backend/internal/assets"
 	"milkbuddy/backend/internal/auth"
 	"milkbuddy/backend/internal/comfy"
@@ -33,10 +34,11 @@ func main() {
 	defer db.Close()
 
 	assetRepo := assets.NewRepository(db)
+	analyticsRepo := analytics.NewRepository(db)
 	workflow := generation.NewWorkflowTemplate(cfg.WorkflowPath)
 	authService := auth.NewService(db)
 	generationService := generation.NewService(comfyClient, r2Store, assetRepo, workflow)
-	server := httpapi.NewServer(authService, generationService, assetRepo, r2Store, cfg.CORSOrigin)
+	server := httpapi.NewServer(authService, generationService, assetRepo, analyticsRepo, r2Store, cfg.CORSOrigin)
 
 	slog.Info("starting milkbuddy backend", "addr", cfg.Addr, "comfy_base_url", cfg.ComfyBaseURL, "database_path", cfg.DatabasePath, "r2_enabled", r2Store != nil)
 	if err := http.ListenAndServe(cfg.Addr, server.Handler()); err != nil {

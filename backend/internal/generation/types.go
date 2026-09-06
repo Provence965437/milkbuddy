@@ -5,6 +5,7 @@ import "time"
 const CreditsPerImage = 10
 
 type CreateRequest struct {
+	UserID         string `json:"-"`
 	Prompt         string `json:"prompt"`
 	NegativePrompt string `json:"negative_prompt"`
 	StyleID        string `json:"style_id"`
@@ -32,6 +33,7 @@ const (
 
 type Job struct {
 	ID               string    `json:"id"`
+	UserID           string    `json:"-"`
 	PromptID         string    `json:"prompt_id"`
 	Status           JobStatus `json:"status"`
 	Prompt           string    `json:"prompt"`
