@@ -52,6 +52,41 @@ func TestAnimeBishoujoPromptUsesStylePrefix(t *testing.T) {
 	}
 }
 
+func TestPromptEnhancerWorkflowUsesEnhancedPromptNode(t *testing.T) {
+	template := NewWorkflowTemplate("../../configs/workflows/z_image_turbo_zengineer_enhancer_test_api.json")
+	workflow, err := template.Build(CreateRequest{
+		Prompt:  "blue eyes",
+		StyleID: "anime_bishoujo",
+	}, JobParams{
+		Width:      832,
+		Height:     1024,
+		ImageCount: 2,
+		Seed:       123,
+		Steps:      9,
+		CFG:        1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "animestyled, uniquanime, Digital anime-style drawing, blue eyes"
+	if got := input(t, workflow, "2", "input_prompt"); got != want {
+		t.Fatalf("unexpected enhanced prompt input: %v", got)
+	}
+	if got := input(t, workflow, "7", "width"); got != 832 {
+		t.Fatalf("unexpected width: %v", got)
+	}
+	if got := input(t, workflow, "7", "height"); got != 1024 {
+		t.Fatalf("unexpected height: %v", got)
+	}
+	if got := input(t, workflow, "7", "batch_size"); got != 2 {
+		t.Fatalf("unexpected batch size: %v", got)
+	}
+	if got := input(t, workflow, "8", "seed"); got != int64(123) {
+		t.Fatalf("unexpected sampler seed: %v", got)
+	}
+}
+
 func TestAnimeBishoujoUltimateUsesAnimePromptWithoutLora(t *testing.T) {
 	template := NewWorkflowTemplate("../../configs/workflows/z_image_turbo.json")
 	workflow, err := template.Build(CreateRequest{

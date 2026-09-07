@@ -18,7 +18,11 @@ func NewWorkflowTemplate(path string) *WorkflowTemplate {
 
 func (t *WorkflowTemplate) Build(req CreateRequest, params JobParams) (map[string]interface{}, error) {
 	style := styleDefinition(req.StyleID)
-	data, err := os.ReadFile(t.pathFor(style))
+	path := t.pathFor(style)
+	if t.usesPromptEnhancer() {
+		path = t.path
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -28,14 +32,12 @@ func (t *WorkflowTemplate) Build(req CreateRequest, params JobParams) (map[strin
 		return nil, err
 	}
 
-	style.Configure(workflow)
-	setInput(workflow, "57:27", "text", buildPrompt(req))
-	setInput(workflow, "57:13", "width", params.Width)
-	setInput(workflow, "57:13", "height", params.Height)
-	setInput(workflow, "57:13", "batch_size", params.ImageCount)
-	setInput(workflow, "57:3", "seed", params.Seed)
-	setInput(workflow, "57:3", "steps", params.Steps)
-	setInput(workflow, "57:3", "cfg", params.CFG)
+	if t.usesPromptEnhancer() {
+		configurePromptEnhancerWorkflow(workflow, req, params, style)
+		return workflow, nil
+	}
+
+	configureTextToImageWorkflow(workflow, req, params, style)
 
 	return workflow, nil
 }
@@ -80,6 +82,69 @@ func setInput(workflow map[string]interface{}, nodeID, key string, value interfa
 		return
 	}
 	inputs[key] = value
+}
+
+func configureTextToImageWorkflow(workflow map[string]interface{}, req CreateRequest, params JobParams, style StyleDefinition) {
+	style.Configure(workflow)
+	setInput(workflow, "57:27", "text", buildPrompt(req))
+	setInput(workflow, "57:13", "width", params.Width)
+	setInput(workflow, "57:13", "height", params.Height)
+	setInput(workflow, "57:13", "batch_size", params.ImageCount)
+	setInput(workflow, "57:3", "seed", params.Seed)
+	setInput(workflow, "57:3", "steps", params.Steps)
+	setInput(workflow, "57:3", "cfg", params.CFG)
+}
+
+func configurePromptEnhancerWorkflow(workflow map[string]interface{}, req CreateRequest, params JobParams, style StyleDefinition) {
+	setInputByClass(workflow, "ZEngineerEnhance", "input_prompt", buildPrompt(req))
+	setInputByClass(workflow, "ZEngineerEnhance", "seed", params.Seed)
+	setInputByClass(workflow, "EmptySD3LatentImage", "width", params.Width)
+	setInputByClass(workflow, "EmptySD3LatentImage", "height", params.Height)
+	setInputByClass(workflow, "EmptySD3LatentImage", "batch_size", params.ImageCount)
+	setInputByClass(workflow, "KSampler", "seed", params.Seed)
+	setInputByClass(workflow, "KSampler", "steps", params.Steps)
+	setInputByClass(workflow, "KSampler", "cfg", params.CFG)
+	setInputByClass(workflow, "SaveImage", "filename_prefix", "conceivebody-zimage-enhanced")
+
+	if style.ID != "anime_bishoujo" {
+		setInputByClass(workflow, "UNETLoader", "unet_name", "z-image-ultimate-nsfw-unlock-turbo.safetensors")
+	}
+}
+
+func setInputByClass(workflow map[string]interface{}, classType, key string, value interface{}) {
+	for _, rawNode := range workflow {
+		node, ok := rawNode.(map[string]interface{})
+		if !ok || node["class_type"] != classType {
+			continue
+		}
+		inputs, ok := node["inputs"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		inputs[key] = value
+	}
+}
+
+func (t *WorkflowTemplate) usesPromptEnhancer() bool {
+	data, err := os.ReadFile(t.path)
+	if err != nil {
+		return false
+	}
+	var workflow map[string]interface{}
+	if err := json.Unmarshal(data, &workflow); err != nil {
+		return false
+	}
+	return hasClass(workflow, "ZEngineerEnhance")
+}
+
+func hasClass(workflow map[string]interface{}, classType string) bool {
+	for _, rawNode := range workflow {
+		node, ok := rawNode.(map[string]interface{})
+		if ok && node["class_type"] == classType {
+			return true
+		}
+	}
+	return false
 }
 
 func buildPrompt(req CreateRequest) string {

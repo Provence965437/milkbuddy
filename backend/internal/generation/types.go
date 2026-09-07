@@ -13,6 +13,7 @@ type CreateRequest struct {
 	Quality        string `json:"quality"`
 	ImageCount     int    `json:"image_count"`
 	Seed           int64  `json:"seed"`
+	EnhancePrompt  bool   `json:"enhance_prompt"`
 }
 
 type ImageToImageRequest struct {

@@ -36,8 +36,9 @@ func main() {
 	assetRepo := assets.NewRepository(db)
 	analyticsRepo := analytics.NewRepository(db)
 	workflow := generation.NewWorkflowTemplate(cfg.WorkflowPath)
+	enhancedWorkflow := generation.NewWorkflowTemplate(cfg.EnhancedWorkflowPath)
 	authService := auth.NewService(db)
-	generationService := generation.NewService(comfyClient, r2Store, assetRepo, workflow)
+	generationService := generation.NewService(comfyClient, r2Store, assetRepo, workflow, enhancedWorkflow)
 	server := httpapi.NewServer(authService, generationService, assetRepo, analyticsRepo, r2Store, cfg.CORSOrigin)
 
 	slog.Info("starting milkbuddy backend", "addr", cfg.Addr, "comfy_base_url", cfg.ComfyBaseURL, "database_path", cfg.DatabasePath, "r2_enabled", r2Store != nil)

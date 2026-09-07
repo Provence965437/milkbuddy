@@ -48,16 +48,18 @@ type Service struct {
 	storage  ImageStorage
 	assets   AssetStore
 	template *WorkflowTemplate
+	enhanced *WorkflowTemplate
 	mu       sync.RWMutex
 	jobs     map[string]*Job
 }
 
-func NewService(comfyClient *comfy.Client, storage ImageStorage, assets AssetStore, template *WorkflowTemplate) *Service {
+func NewService(comfyClient *comfy.Client, storage ImageStorage, assets AssetStore, template *WorkflowTemplate, enhanced *WorkflowTemplate) *Service {
 	return &Service{
 		comfy:    comfyClient,
 		storage:  storage,
 		assets:   assets,
 		template: template,
+		enhanced: enhanced,
 		jobs:     make(map[string]*Job),
 	}
 }
@@ -68,7 +70,15 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Job, error) {
 		return nil, err
 	}
 
-	workflow, err := s.template.Build(req, params)
+	template := s.template
+	if req.EnhancePrompt {
+		if s.enhanced == nil {
+			return nil, errors.New("prompt enhancer workflow is not configured")
+		}
+		template = s.enhanced
+	}
+
+	workflow, err := template.Build(req, params)
 	if err != nil {
 		return nil, err
 	}

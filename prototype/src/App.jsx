@@ -72,15 +72,9 @@ const text = {
     signIn: '登录',
     dashboard: '看板',
     startCreating: '开始创作',
-    viewWorkspace: '进入工作台',
     homeHeroEyebrow: 'AI 图像创作平台',
     homeHeroTitle: '用文字和参考图，快速生成你想要的视觉角色',
     homeHeroCopy: 'ConceiveBody 聚焦高自由度 AI 生图工作流。先从文生图和图生图开始，逐步沉淀风格、资产和角色能力。',
-    homePromptLabel: '输入你的画面描述',
-    homePromptSample: '一个金发亚洲女孩，蓝色薄纱睡衣，电影感暖光，侧躺在黄色床上，娇羞表情...',
-    homeGeneratePreview: '生成预览',
-    homeModeText: '文生图',
-    homeModeImage: '图生图',
     homeFeatureTitle: '从灵感到资产的完整链路',
     homeFeatureOneTitle: '多风格文生图',
     homeFeatureOneCopy: '选择风格后输入 prompt，系统自动拼接风格描述并生成多张结果。',
@@ -93,8 +87,12 @@ const text = {
     homeStepTwo: '填写 prompt 和基础参数',
     homeStepThree: '生成、筛选并保存到资产库',
     homeStyleTitle: '当前可用风格',
-    homePrivacyTitle: '面向私密创作的产品基础',
-    homePrivacyCopy: '登录后才能访问工作台和资产页；生成资产存储在云端对象存储，后续可继续接入支付、队列、角色和聊天模块。',
+    footerTagline: 'AI 图像工作室',
+    footerCopyright: '© 2026 ConceiveBody. All rights reserved.',
+    footerTerms: 'Terms',
+    footerPrivacy: 'Privacy',
+    footerContact: 'Contact',
+    footerDisclaimer: '本站仅面向成年人使用。请遵守所在地区法律法规，并确保上传和生成内容拥有合法授权。',
     adminDashboard: '管理员看板',
     dashboardSubtitle: '核心增长、访问和生成使用量趋势',
     registeredUsers: '注册用户',
@@ -119,6 +117,8 @@ const text = {
     composerTitle: '描述你想创作的图像',
     prompt: '提示词',
     clear: '清空',
+    promptEnhance: '提示词增强',
+    promptEnhanceHelp: '开启后会先用 Z-Engineer 重写并扩展提示词，通常能提升构图、细节和语义理解。副作用是生成会更慢，且增强器可能改写你的原始表达，导致结果风格或细节略有偏移。',
     imageEditPlaceholder: '描述参考图需要如何修改...',
     textPromptPlaceholder: '描述人物、姿势、服装、场景、光线和构图...',
     parameters: '参数',
@@ -129,8 +129,10 @@ const text = {
     draft: '草稿',
     images: '数量',
     seed: '种子',
-    random: '随机',
-    locked: '锁定',
+    randomSeed: '随机',
+    specifiedSeed: '指定',
+    seedPlaceholder: '输入种子码',
+    seedRequired: '请选择随机种子，或填写有效的指定种子码。',
     generating: '生成中...',
     generateFromImage: '图生图',
     generate: '生成',
@@ -139,6 +141,7 @@ const text = {
     noImagesImageMode: '上传参考图，填写提示词，然后生成。',
     noImagesTextMode: '选择风格，填写提示词，然后生成。',
     selectedImage: '选中图片',
+    imagePreview: '图片预览',
     generatingBatch: '批量生成中',
     requestedImages: (count) => `已请求 ${count} 张图片，完成后显示预览。`,
     nothingSelected: '未选择图片',
@@ -215,15 +218,9 @@ const text = {
     signIn: 'Sign in',
     dashboard: 'Dashboard',
     startCreating: 'Start creating',
-    viewWorkspace: 'Open workspace',
     homeHeroEyebrow: 'AI Image Creation Platform',
     homeHeroTitle: 'Create visual characters from text and reference images.',
     homeHeroCopy: 'ConceiveBody focuses on flexible AI image workflows. Start with text-to-image and image-to-image, then build toward styles, assets, characters, and chat.',
-    homePromptLabel: 'Describe your scene',
-    homePromptSample: 'A blonde Asian girl, blue sheer nightgown, cinematic warm light, lying sideways on a yellow bed, shy expression...',
-    homeGeneratePreview: 'Generate preview',
-    homeModeText: 'Text to image',
-    homeModeImage: 'Image to image',
     homeFeatureTitle: 'A full path from idea to reusable assets',
     homeFeatureOneTitle: 'Multi-style text generation',
     homeFeatureOneCopy: 'Pick a style, write a prompt, and the system combines style instructions before generating image batches.',
@@ -236,8 +233,12 @@ const text = {
     homeStepTwo: 'Write a prompt and basic parameters',
     homeStepThree: 'Generate, select, and save to the asset library',
     homeStyleTitle: 'Available styles',
-    homePrivacyTitle: 'Built for private creation workflows',
-    homePrivacyCopy: 'Workspace and assets require login. Generated assets are stored in cloud object storage, ready for payments, queues, characters, and chat modules later.',
+    footerTagline: 'AI Image Studio',
+    footerCopyright: '© 2026 ConceiveBody. All rights reserved.',
+    footerTerms: 'Terms',
+    footerPrivacy: 'Privacy',
+    footerContact: 'Contact',
+    footerDisclaimer: 'Adults only. Follow local laws and only upload or generate content you are authorized to use.',
     adminDashboard: 'Admin Dashboard',
     dashboardSubtitle: 'Core growth, traffic, and generation usage trends.',
     registeredUsers: 'Registered users',
@@ -262,6 +263,8 @@ const text = {
     composerTitle: 'Describe the image you want to create',
     prompt: 'Prompt',
     clear: 'Clear',
+    promptEnhance: 'Enhance prompt',
+    promptEnhanceHelp: 'When enabled, Z-Engineer rewrites and expands your prompt before generation. It can improve composition, detail, and semantic binding. Tradeoffs: generation is slower, and the rewritten prompt may slightly shift style or details from your original wording.',
     imageEditPlaceholder: 'Describe how the reference image should be transformed...',
     textPromptPlaceholder: 'Describe the character, pose, clothing, scene, lighting, and composition...',
     parameters: 'Parameters',
@@ -272,8 +275,10 @@ const text = {
     draft: 'Draft',
     images: 'Images',
     seed: 'Seed',
-    random: 'Random',
-    locked: 'Locked',
+    randomSeed: 'Random',
+    specifiedSeed: 'Custom',
+    seedPlaceholder: 'Enter seed',
+    seedRequired: 'Choose a random seed, or enter a valid custom seed.',
     generating: 'Generating...',
     generateFromImage: 'Generate from image',
     generate: 'Generate',
@@ -282,6 +287,7 @@ const text = {
     noImagesImageMode: 'Upload a reference image, write a prompt, then generate.',
     noImagesTextMode: 'Choose a style, write a prompt, then generate.',
     selectedImage: 'Selected Image',
+    imagePreview: 'Image Preview',
     generatingBatch: 'Generating batch',
     requestedImages: (count) => `${count} image${count > 1 ? 's' : ''} requested. Preview will load after completion.`,
     nothingSelected: 'Nothing selected',
@@ -377,11 +383,15 @@ export function App() {
   const [generationMode, setGenerationMode] = useState('text-to-image');
   const [activePack, setActivePack] = useState(stylePacks[0].id);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [previewImageIndex, setPreviewImageIndex] = useState(null);
+  const [blurResults, setBlurResults] = useState(true);
   const [prompt, setPrompt] = useState('');
+  const [enhancePrompt, setEnhancePrompt] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [quality, setQuality] = useState('High');
-  const [imageCount, setImageCount] = useState('4');
-  const [seed, setSeed] = useState('Random');
+  const [imageCount, setImageCount] = useState('1');
+  const [seedMode, setSeedMode] = useState('random');
+  const [seedValue, setSeedValue] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [generationJob, setGenerationJob] = useState(null);
   const [generationError, setGenerationError] = useState('');
@@ -441,6 +451,7 @@ export function App() {
       : [];
   const isGenerating = generationJob?.status === 'queued' || generationJob?.status === 'running';
   const hasResults = activeImages.length > 0;
+  const activePreviewImage = previewImageIndex == null ? '' : activeImages[previewImageIndex];
   const effectiveImageCount = generationMode === 'image-to-image' ? 1 : Number(imageCount);
   const loadingSlots = Array.from({ length: pendingImageCount }, (_, index) => index);
 
@@ -494,7 +505,13 @@ export function App() {
 
   const createGeneration = async () => {
     setGenerationError('');
+    const parsedSeed = seedMode === 'specified' ? Number(seedValue) : 0;
+    if (seedMode === 'specified' && (!seedValue.trim() || !Number.isSafeInteger(parsedSeed) || parsedSeed < 1)) {
+      setGenerationError(t.seedRequired);
+      return;
+    }
     setSelectedImageIndex(0);
+    setPreviewImageIndex(null);
     setPendingImageCount(effectiveImageCount);
     if (generationMode === 'image-to-image') {
       if (!referenceImage) {
@@ -507,7 +524,7 @@ export function App() {
         form.append('aspect_ratio', aspectRatio);
         form.append('quality', quality);
         form.append('image_count', '1');
-        form.append('seed', seed === 'Random' ? '0' : seed);
+        form.append('seed', String(parsedSeed));
         form.append('denoise', '0.55');
         form.append('reference_image', referenceImage);
 
@@ -548,7 +565,8 @@ export function App() {
           aspect_ratio: aspectRatio,
           quality,
           image_count: Number(imageCount),
-          seed: seed === 'Random' ? 0 : Number(seed),
+          seed: parsedSeed,
+          enhance_prompt: enhancePrompt,
         }),
       });
       const payload = await response.json();
@@ -786,31 +804,14 @@ export function App() {
 
         <div className="status-strip">
           {authUser ? (
-            <div className="nav-cluster">
-              <span className="nav-title">{t.navigation}</span>
-              <nav
-                className={`top-nav ${currentPage === 'assets' ? 'is-assets-page' : ''} ${currentPage === 'dashboard' ? 'is-dashboard-page' : ''}`}
-                aria-label="Primary"
-              >
-                <span className="top-nav-indicator" aria-hidden="true" />
-                <button
-                  type="button"
-                  className={currentPage === 'workspace' ? 'is-active' : ''}
-                  onClick={() => setCurrentPage('workspace')}
-                >
-                  {navIcons.workspace}
-                  <span>{t.workspace}</span>
-                </button>
-                <button
-                  type="button"
-                  className={currentPage === 'assets' ? 'is-active' : ''}
-                  onClick={() => setCurrentPage('assets')}
-                >
-                  {navIcons.assets}
-                  <span>{t.assets}</span>
-                </button>
-              </nav>
-            </div>
+            <button
+              type="button"
+              className={`workspace-nav-button ${currentPage === 'workspace' ? 'is-active' : ''}`}
+              onClick={() => setCurrentPage('workspace')}
+            >
+              {navIcons.workspace}
+              <span>{t.workspace}</span>
+            </button>
           ) : null}
           {authUser ? (
             <>
@@ -833,6 +834,16 @@ export function App() {
 
                 {userMenuOpen ? (
                   <div className="account-dropdown">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCurrentPage('assets');
+                        setUserMenuOpen(false);
+                      }}
+                    >
+                      {navIcons.assets}
+                      <span>{t.assets}</span>
+                    </button>
                     {authUser.is_admin ? (
                       <button
                         type="button"
@@ -1003,7 +1014,9 @@ export function App() {
                 {t.clear}
               </button>
             </div>
-            <div className={`prompt-input-wrap ${generationMode === 'image-to-image' ? 'has-reference-upload' : ''}`}>
+            <div
+              className={`prompt-input-wrap ${generationMode === 'image-to-image' ? 'has-reference-upload' : 'has-enhance-toggle'}`}
+            >
               <textarea
                 value={prompt}
                 placeholder={
@@ -1040,6 +1053,25 @@ export function App() {
                       <path d="M5 5h14v14H5V5Zm2 2v8.1l2.7-2.7 2.5 2.5 3.2-4.1L17 13v-6H7Zm0 10h10.5l-2-2.7-3.1 4-2.7-2.7L7 17Z" />
                     </svg>
                   </label>
+                </div>
+              ) : null}
+              {generationMode === 'text-to-image' ? (
+                <div className="prompt-enhance-control">
+                  <button
+                    type="button"
+                    className={`prompt-enhance-toggle ${enhancePrompt ? 'is-active' : ''}`}
+                    aria-pressed={enhancePrompt}
+                    onClick={() => setEnhancePrompt((value) => !value)}
+                  >
+                    <span>{t.promptEnhance}</span>
+                    <span className="prompt-enhance-track" aria-hidden="true">
+                      <span className="prompt-enhance-knob" />
+                    </span>
+                  </button>
+                  <span className="prompt-enhance-help" tabIndex="0" aria-label={t.promptEnhanceHelp}>
+                    ?
+                    <span className="prompt-enhance-tooltip" role="tooltip">{t.promptEnhanceHelp}</span>
+                  </span>
                 </div>
               ) : null}
             </div>
@@ -1083,11 +1115,35 @@ export function App() {
 
               <label>
                 <span>{t.seed}</span>
-                <select value={seed} onChange={(event) => setSeed(event.target.value)}>
-                  <option value="Random">{t.random}</option>
-                  <option value="Locked">{t.locked}</option>
-                  <option>134992</option>
-                </select>
+                <div className="seed-control">
+                  <div className="seed-mode-toggle" aria-label={t.seed}>
+                    <button
+                      type="button"
+                      className={seedMode === 'random' ? 'is-active' : ''}
+                      onClick={() => setSeedMode('random')}
+                    >
+                      {t.randomSeed}
+                    </button>
+                    <button
+                      type="button"
+                      className={seedMode === 'specified' ? 'is-active' : ''}
+                      onClick={() => setSeedMode('specified')}
+                    >
+                      {t.specifiedSeed}
+                    </button>
+                  </div>
+                  {seedMode === 'specified' ? (
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      value={seedValue}
+                      placeholder={t.seedPlaceholder}
+                      onChange={(event) => setSeedValue(event.target.value)}
+                    />
+                  ) : null}
+                </div>
               </label>
             </div>
 
@@ -1108,6 +1164,19 @@ export function App() {
         <section className="results-column panel">
           <div className="panel-heading">
             <h2>{t.results}</h2>
+            {hasResults ? (
+              <button
+                type="button"
+                className={`asset-blur-toggle result-blur-toggle ${blurResults ? 'is-on' : ''}`}
+                aria-pressed={blurResults}
+                onClick={() => setBlurResults((value) => !value)}
+              >
+                <span className="asset-blur-toggle-track" aria-hidden="true">
+                  <span />
+                </span>
+                {blurResults ? t.blurPreview : t.clearPreview}
+              </button>
+            ) : null}
           </div>
 
           {isGenerating ? (
@@ -1126,9 +1195,12 @@ export function App() {
                   key={`${image}-${index}`}
                   type="button"
                   className={`result-thumb ${selectedImageIndex === index ? 'is-active' : ''}`}
-                  onClick={() => setSelectedImageIndex(index)}
+                  onClick={() => {
+                    setSelectedImageIndex(index);
+                    setPreviewImageIndex(index);
+                  }}
                 >
-                  <img src={image} alt="" />
+                  <img className={`result-image ${blurResults ? 'is-blurred' : ''}`} src={image} alt="" />
                 </button>
               ))}
             </div>
@@ -1143,28 +1215,34 @@ export function App() {
             </div>
           )}
 
-          <div className="selected-block">
-            <div className="selected-header">
-              <h3>{t.selectedImage}</h3>
-              <span>{hasResults ? aspectRatio : generationJob?.status ?? 'empty'}</span>
+          {isGenerating ? (
+            <div className="selected-empty selected-loading">
+              <span className="loading-orb loading-orb-large" />
+              <strong>{t.generatingBatch}</strong>
+              <span>{t.requestedImages(pendingImageCount)}</span>
             </div>
-            {isGenerating ? (
-              <div className="selected-empty selected-loading">
-                <span className="loading-orb loading-orb-large" />
-                <strong>{t.generatingBatch}</strong>
-                <span>{t.requestedImages(pendingImageCount)}</span>
+          ) : null}
+        </section>
+        </section>
+
+        {activePreviewImage ? (
+          <div className="asset-modal" role="dialog" aria-modal="true" aria-label={t.imagePreview} onClick={() => setPreviewImageIndex(null)}>
+            <div className="asset-modal-panel workspace-preview-modal panel" onClick={(event) => event.stopPropagation()}>
+              <div className="asset-modal-header">
+                <div>
+                  <span className="eyebrow">{t.imagePreview}</span>
+                  <h2>{t.selectedImage}</h2>
+                </div>
+                <button type="button" className="asset-modal-close" aria-label={t.closeAssetDetail} onClick={() => setPreviewImageIndex(null)}>
+                  ×
+                </button>
               </div>
-            ) : hasResults ? (
-              <img className="selected-image" src={activeImages[selectedImageIndex]} alt="" />
-            ) : (
-              <div className="selected-empty">
-                <strong>{t.nothingSelected}</strong>
-                <span>{t.selectableHere}</span>
+              <div className="workspace-preview-frame">
+                <img src={activePreviewImage} alt="" />
               </div>
-            )}
+            </div>
           </div>
-        </section>
-        </section>
+        ) : null}
 
         <footer className="timeline-bar">
         <div className="timeline-meta">
@@ -1211,7 +1289,7 @@ export function App() {
 }
 
 function HomePage({ language, onStart, t }) {
-  const galleryImages = [
+  const heroImages = [
     '/assets/conceivebody-style-realistic.png',
     '/assets/conceivebody-style-anime.png',
     '/assets/conceivebody-style-anime-3d.png',
@@ -1230,6 +1308,11 @@ function HomePage({ language, onStart, t }) {
           <span className="eyebrow">{t.homeHeroEyebrow}</span>
           <h1>{t.homeHeroTitle}</h1>
           <p>{t.homeHeroCopy}</p>
+          <div className="home-signal-row" aria-label="Platform highlights">
+            <span>Private workspace</span>
+            <span>Cloud assets</span>
+            <span>Style pipeline</span>
+          </div>
           <div className="home-cta-row">
             <button type="button" className="home-primary-cta" onClick={onStart}>
               {t.startCreating}
@@ -1238,22 +1321,28 @@ function HomePage({ language, onStart, t }) {
           </div>
         </div>
 
-        <div className="home-generator-card panel">
-          <div className="home-mode-pills">
-            <span>{t.homeModeText}</span>
-            <span>{t.homeModeImage}</span>
+        <div className="home-hero-visual" aria-hidden="true">
+          <div className="home-orbit-card home-orbit-card-main">
+            <img src={heroImages[0]} alt="" />
           </div>
-          <label>
-            <span>{t.homePromptLabel}</span>
-            <div className="home-prompt-box">{t.homePromptSample}</div>
-          </label>
-          <button type="button" onClick={onStart}>{t.homeGeneratePreview}</button>
-          <div className="home-preview-grid">
-            {galleryImages.map((image) => (
-              <img key={image} src={image} alt="" />
-            ))}
+          <div className="home-orbit-card home-orbit-card-top">
+            <img src={heroImages[1]} alt="" />
+          </div>
+          <div className="home-orbit-card home-orbit-card-bottom">
+            <img src={heroImages[2]} alt="" />
+          </div>
+          <div className="home-visual-badge">
+            <strong>3</strong>
+            <span>{language === 'zh' ? '种风格在线' : 'active styles'}</span>
           </div>
         </div>
+      </div>
+
+      <div className="home-proof-strip panel" aria-label="Product capabilities">
+        <span>{language === 'zh' ? '文生图优先上线' : 'Text-to-image first'}</span>
+        <span>{language === 'zh' ? '图生图已接入' : 'Image editing ready'}</span>
+        <span>{language === 'zh' ? '资产自动入库' : 'Auto-saved assets'}</span>
+        <span>{language === 'zh' ? '管理员看板' : 'Admin analytics'}</span>
       </div>
 
       <div className="home-section">
@@ -1296,16 +1385,19 @@ function HomePage({ language, onStart, t }) {
         </div>
       </div>
 
-      <div className="home-bottom-cta panel">
+      <footer className="home-footer">
         <div>
-          <span className="eyebrow">{t.homePrivacyTitle}</span>
-          <h2>{t.viewWorkspace}</h2>
-          <p>{t.homePrivacyCopy}</p>
+          <strong>ConceiveBody</strong>
+          <span>{t.footerTagline}</span>
         </div>
-        <button type="button" className="home-primary-cta" onClick={onStart}>
-          {t.startCreating}
-        </button>
-      </div>
+        <nav aria-label="Footer">
+          <a href="#terms">{t.footerTerms}</a>
+          <a href="#privacy">{t.footerPrivacy}</a>
+          <a href="mailto:support@conceivebody.com">{t.footerContact}</a>
+        </nav>
+        <p>{t.footerDisclaimer}</p>
+        <small>{t.footerCopyright}</small>
+      </footer>
     </section>
   );
 }
