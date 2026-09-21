@@ -53,16 +53,22 @@ func (t *WorkflowTemplate) BuildImageToImage(req CreateRequest, params JobParams
 		return nil, err
 	}
 
-	setInput(workflow, "218", "prompt", req.Prompt)
+	setInput(workflow, "221", "prompt", editPrompt(req))
 	setInput(workflow, "219", "image", imageName)
 	setInput(workflow, "194", "seed", params.Seed)
 	setInput(workflow, "194", "steps", 4)
 	setInput(workflow, "194", "cfg", 1)
 	setInput(workflow, "194", "denoise", 1)
-	setInput(workflow, "208", "value", 1280)
 	setInput(workflow, "216", "filename_prefix", "milkbuddy-qwen-edit")
 
 	return workflow, nil
+}
+
+func editPrompt(req CreateRequest) string {
+	if !req.DeepUnderstand {
+		return req.Prompt
+	}
+	return "Use the reference image as the exact visual foundation. Preserve the same subject, identity, pose, composition, camera angle, and overall scene. Carefully refine only the details needed to make the image accurately satisfy this requested description: " + buildPrompt(req)
 }
 
 func (t *WorkflowTemplate) pathFor(style StyleDefinition) string {

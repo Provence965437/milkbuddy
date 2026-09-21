@@ -171,6 +171,10 @@ func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.UserID = user.ID
+	if req.EnhancePrompt && req.DeepUnderstand {
+		writeError(w, http.StatusBadRequest, "prompt enhancement and deep understanding cannot be enabled together")
+		return
+	}
 
 	cost, err := generation.CreditCost(req)
 	if err != nil {
@@ -191,11 +195,12 @@ func (s *Server) createGeneration(w http.ResponseWriter, r *http.Request) {
 		chargedCredits = 0
 	}
 	s.track(r, user.ID, "generation_requested", "workspace", map[string]interface{}{
-		"mode":        "text-to-image",
-		"style_id":    req.StyleID,
-		"image_count": req.ImageCount,
-		"credits":     chargedCredits,
-		"is_admin":    user.IsAdmin,
+		"mode":            "text-to-image",
+		"style_id":        req.StyleID,
+		"image_count":     req.ImageCount,
+		"deep_understand": req.DeepUnderstand,
+		"credits":         chargedCredits,
+		"is_admin":        user.IsAdmin,
 	})
 
 	job, err := s.generations.Create(r.Context(), req)

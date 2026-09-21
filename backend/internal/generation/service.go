@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/url"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -86,13 +87,14 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Job, error) {
 	id := newID()
 	now := time.Now().UTC()
 	job := &Job{
-		ID:        id,
-		UserID:    req.UserID,
-		Status:    StatusQueued,
-		Prompt:    req.Prompt,
-		Params:    params,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:             id,
+		UserID:         req.UserID,
+		Status:         StatusQueued,
+		Prompt:         req.Prompt,
+		Params:         params,
+		DeepUnderstand: req.DeepUnderstand,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
 	s.mu.Lock()
@@ -189,26 +191,129 @@ func (s *Service) Get(ctx context.Context, id string) (*Job, error) {
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	job.Status = StatusRunning
 	job.UpdatedAt = time.Now().UTC()
-	if history.Status.Completed {
-		s.mu.Unlock()
-		images, err := s.imagesFromOutputs(ctx, job, history.Outputs)
-		s.mu.Lock()
-		if err != nil {
-			job.Status = StatusFailed
-			job.Error = err.Error()
-			return cloneJob(job), nil
-		}
-		job.Status = StatusCompleted
-		job.Images = images
-	}
 	if history.Status.StatusStr == "error" {
 		job.Status = StatusFailed
 		job.Error = "ComfyUI execution failed"
+		result := cloneJob(job)
+		s.mu.Unlock()
+		return result, nil
 	}
-	return cloneJob(job), nil
+	if !history.Status.Completed {
+		result := cloneJob(job)
+		s.mu.Unlock()
+		return result, nil
+	}
+	if job.DeepUnderstand {
+		if !job.DeepEditQueued {
+			job.DeepEditQueued = true
+			s.mu.Unlock()
+			err := s.queueDeepUnderstanding(ctx, job, history.Outputs)
+			s.mu.Lock()
+			if err != nil {
+				job.Status = StatusFailed
+				job.Error = err.Error()
+			}
+			result := cloneJob(job)
+			s.mu.Unlock()
+			return result, nil
+		}
+		s.mu.Unlock()
+		completed, outputs, err := s.deepEditOutputs(ctx, job.EditPromptIDs)
+		if err != nil {
+			s.markFailed(id, err)
+			return s.Get(ctx, id)
+		}
+		if !completed {
+			s.mu.RLock()
+			result := cloneJob(job)
+			s.mu.RUnlock()
+			return result, nil
+		}
+		images, err := s.imagesFromOutputs(ctx, job, outputs)
+		if err != nil {
+			s.markFailed(id, err)
+			return s.Get(ctx, id)
+		}
+		s.mu.Lock()
+		job.Status = StatusCompleted
+		job.Images = images
+		result := cloneJob(job)
+		s.mu.Unlock()
+		return result, nil
+	}
+	s.mu.Unlock()
+	images, err := s.imagesFromOutputs(ctx, job, history.Outputs)
+	if err != nil {
+		s.markFailed(id, err)
+		return s.Get(ctx, id)
+	}
+	s.mu.Lock()
+	job.Status = StatusCompleted
+	job.Images = images
+	result := cloneJob(job)
+	s.mu.Unlock()
+	return result, nil
+}
+
+func (s *Service) queueDeepUnderstanding(ctx context.Context, job *Job, outputs map[string]comfy.NodeOutput) error {
+	refs := imageRefsFromOutputs(outputs)
+	if len(refs) == 0 {
+		return errors.New("base generation produced no images")
+	}
+	editIDs := make([]string, 0, len(refs))
+	for index, ref := range refs {
+		data, _, err := s.comfy.Image(ctx, ref)
+		if err != nil {
+			return err
+		}
+		uploaded, err := s.comfy.UploadImage(ctx, fmt.Sprintf("deep-understanding-%s-%d.png", job.ID, index+1), data)
+		if err != nil {
+			return err
+		}
+		workflow, err := s.template.BuildImageToImage(CreateRequest{
+			Prompt:         job.Prompt,
+			StyleID:        job.Params.StyleID,
+			DeepUnderstand: true,
+		}, job.Params, uploaded.Name)
+		if err != nil {
+			return err
+		}
+		response, err := s.comfy.SubmitPrompt(ctx, workflow, fmt.Sprintf("milkbuddy-deep-%s-%d", job.ID, index+1))
+		if err != nil {
+			return err
+		}
+		editIDs = append(editIDs, response.PromptID)
+	}
+	s.mu.Lock()
+	job.EditPromptIDs = editIDs
+	job.UpdatedAt = time.Now().UTC()
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *Service) deepEditOutputs(ctx context.Context, promptIDs []string) (bool, map[string]comfy.NodeOutput, error) {
+	if len(promptIDs) == 0 {
+		return false, nil, nil
+	}
+	outputs := make(map[string]comfy.NodeOutput)
+	for _, promptID := range promptIDs {
+		history, found, err := s.comfy.History(ctx, promptID)
+		if err != nil {
+			return false, nil, err
+		}
+		if !found || !history.Status.Completed {
+			if found && history.Status.StatusStr == "error" {
+				return false, nil, errors.New("Qwen Edit execution failed")
+			}
+			return false, nil, nil
+		}
+		for nodeID, output := range history.Outputs {
+			outputs[promptID+"-"+nodeID] = output
+		}
+	}
+	return true, outputs, nil
 }
 
 func (s *Service) ImageRef(id string, index int) (comfy.ImageRef, error) {
@@ -283,6 +388,12 @@ func CreditCost(req CreateRequest) (int, error) {
 	if count < 1 || count > 4 {
 		return 0, errors.New("image_count must be between 1 and 4")
 	}
+	if req.EnhancePrompt && req.DeepUnderstand {
+		return 0, errors.New("prompt enhancement and deep understanding cannot be enabled together")
+	}
+	if req.DeepUnderstand {
+		return count * CreditsPerDeepUnderstandingImage, nil
+	}
 	return count * CreditsPerImage, nil
 }
 
@@ -301,68 +412,75 @@ func dimensions(ratio string) (int, int) {
 
 func (s *Service) imagesFromOutputs(ctx context.Context, job *Job, outputs map[string]comfy.NodeOutput) ([]Image, error) {
 	var images []Image
-	for _, output := range outputs {
-		for _, image := range output.Images {
-			index := len(images)
-			query := url.Values{}
-			query.Set("filename", image.Filename)
-			storageKey := ""
-			imageURL := fmt.Sprintf("/api/generations/%s/images/%d?%s", job.ID, index, query.Encode())
-			if s.storage != nil {
-				data, contentType, err := s.comfy.Image(ctx, comfy.ImageRef{
-					Filename:  image.Filename,
-					Subfolder: image.Subfolder,
-					Type:      image.Type,
-				})
-				if err != nil {
-					return nil, err
-				}
-				stored, err := s.storage.Store(ctx, objectstore.Object{
-					Key:         objectKey(job.ID, index, image.Filename),
-					Data:        data,
-					ContentType: fallback(contentType, "image/png"),
-				})
-				if err != nil {
-					return nil, err
-				}
-				storageKey = stored.Key
-				if stored.URL != "" {
-					imageURL = stored.URL
-				}
+	for _, image := range imageRefsFromOutputs(outputs) {
+		index := len(images)
+		query := url.Values{}
+		query.Set("filename", image.Filename)
+		storageKey := ""
+		imageURL := fmt.Sprintf("/api/generations/%s/images/%d?%s", job.ID, index, query.Encode())
+		if s.storage != nil {
+			data, contentType, err := s.comfy.Image(ctx, image)
+			if err != nil {
+				return nil, err
 			}
-			images = append(images, Image{
-				Index:      index,
-				URL:        imageURL,
-				Filename:   image.Filename,
-				Subfolder:  image.Subfolder,
-				Type:       image.Type,
-				StorageKey: storageKey,
+			stored, err := s.storage.Store(ctx, objectstore.Object{
+				Key:         objectKey(job.ID, index, image.Filename),
+				Data:        data,
+				ContentType: fallback(contentType, "image/png"),
 			})
-			if s.assets != nil {
-				err := s.assets.Create(ctx, CreateAsset{
-					ID:           newID(),
-					UserID:       job.UserID,
-					GenerationID: job.ID,
-					ImageIndex:   index,
-					URL:          imageURL,
-					StorageKey:   storageKey,
-					Filename:     image.Filename,
-					StyleID:      job.Params.StyleID,
-					AspectRatio:  job.Params.AspectRatio,
-					Quality:      job.Params.Quality,
-					Width:        job.Params.Width,
-					Height:       job.Params.Height,
-					Seed:         job.Params.Seed,
-					Prompt:       job.Prompt,
-					CreatedAt:    time.Now().UTC(),
-				})
-				if err != nil {
-					return nil, err
-				}
+			if err != nil {
+				return nil, err
+			}
+			storageKey = stored.Key
+			if stored.URL != "" {
+				imageURL = stored.URL
+			}
+		}
+		images = append(images, Image{
+			Index:      index,
+			URL:        imageURL,
+			Filename:   image.Filename,
+			Subfolder:  image.Subfolder,
+			Type:       image.Type,
+			StorageKey: storageKey,
+		})
+		if s.assets != nil {
+			err := s.assets.Create(ctx, CreateAsset{
+				ID:           newID(),
+				UserID:       job.UserID,
+				GenerationID: job.ID,
+				ImageIndex:   index,
+				URL:          imageURL,
+				StorageKey:   storageKey,
+				Filename:     image.Filename,
+				StyleID:      job.Params.StyleID,
+				AspectRatio:  job.Params.AspectRatio,
+				Quality:      job.Params.Quality,
+				Width:        job.Params.Width,
+				Height:       job.Params.Height,
+				Seed:         job.Params.Seed,
+				Prompt:       job.Prompt,
+				CreatedAt:    time.Now().UTC(),
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
 	return images, nil
+}
+
+func imageRefsFromOutputs(outputs map[string]comfy.NodeOutput) []comfy.ImageRef {
+	keys := make([]string, 0, len(outputs))
+	for key := range outputs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	refs := make([]comfy.ImageRef, 0)
+	for _, key := range keys {
+		refs = append(refs, outputs[key].Images...)
+	}
+	return refs
 }
 
 func fallback(value, fallback string) string {

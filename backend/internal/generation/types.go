@@ -2,7 +2,10 @@ package generation
 
 import "time"
 
-const CreditsPerImage = 10
+const (
+	CreditsPerImage                  = 10
+	CreditsPerDeepUnderstandingImage = 20
+)
 
 type CreateRequest struct {
 	UserID         string `json:"-"`
@@ -14,6 +17,7 @@ type CreateRequest struct {
 	ImageCount     int    `json:"image_count"`
 	Seed           int64  `json:"seed"`
 	EnhancePrompt  bool   `json:"enhance_prompt"`
+	DeepUnderstand bool   `json:"deep_understand"`
 }
 
 type ImageToImageRequest struct {
@@ -36,6 +40,9 @@ type Job struct {
 	ID               string    `json:"id"`
 	UserID           string    `json:"-"`
 	PromptID         string    `json:"prompt_id"`
+	EditPromptIDs    []string  `json:"-"`
+	DeepUnderstand   bool      `json:"deep_understand,omitempty"`
+	DeepEditQueued   bool      `json:"-"`
 	Status           JobStatus `json:"status"`
 	Prompt           string    `json:"prompt"`
 	Params           JobParams `json:"params"`

@@ -119,6 +119,8 @@ const text = {
     clear: '清空',
     promptEnhance: '提示词增强',
     promptEnhanceHelp: '开启后会先用 Z-Engineer 重写并扩展提示词，通常能提升构图、细节和语义理解。副作用是生成会更慢，且增强器可能改写你的原始表达，导致结果风格或细节略有偏移。',
+    deepUnderstand: '深度理解',
+    deepUnderstandHelp: '开启后，先生成基础图，再由 Qwen Edit 根据原始提示词二次校准语义细节。每张消耗 20 积分，耗时更长；它会尽量保持主体和构图，但仍可能调整局部细节。',
     imageEditPlaceholder: '描述参考图需要如何修改...',
     textPromptPlaceholder: '描述人物、姿势、服装、场景、光线和构图...',
     parameters: '参数',
@@ -265,6 +267,8 @@ const text = {
     clear: 'Clear',
     promptEnhance: 'Enhance prompt',
     promptEnhanceHelp: 'When enabled, Z-Engineer rewrites and expands your prompt before generation. It can improve composition, detail, and semantic binding. Tradeoffs: generation is slower, and the rewritten prompt may slightly shift style or details from your original wording.',
+    deepUnderstand: 'Deep understanding',
+    deepUnderstandHelp: 'Generate a base image first, then let Qwen Edit refine semantic details from your original prompt. It costs 20 credits per image and takes longer; it preserves the subject and composition where possible, but may adjust local details.',
     imageEditPlaceholder: 'Describe how the reference image should be transformed...',
     textPromptPlaceholder: 'Describe the character, pose, clothing, scene, lighting, and composition...',
     parameters: 'Parameters',
@@ -387,6 +391,7 @@ export function App() {
   const [blurResults, setBlurResults] = useState(true);
   const [prompt, setPrompt] = useState('');
   const [enhancePrompt, setEnhancePrompt] = useState(false);
+  const [deepUnderstand, setDeepUnderstand] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [quality, setQuality] = useState('High');
   const [imageCount, setImageCount] = useState('1');
@@ -567,6 +572,7 @@ export function App() {
           image_count: Number(imageCount),
           seed: parsedSeed,
           enhance_prompt: enhancePrompt,
+          deep_understand: deepUnderstand,
         }),
       });
       const payload = await response.json();
@@ -1061,7 +1067,10 @@ export function App() {
                     type="button"
                     className={`prompt-enhance-toggle ${enhancePrompt ? 'is-active' : ''}`}
                     aria-pressed={enhancePrompt}
-                    onClick={() => setEnhancePrompt((value) => !value)}
+                    onClick={() => {
+                      setEnhancePrompt((value) => !value);
+                      setDeepUnderstand(false);
+                    }}
                   >
                     <span>{t.promptEnhance}</span>
                     <span className="prompt-enhance-track" aria-hidden="true">
@@ -1071,6 +1080,24 @@ export function App() {
                   <span className="prompt-enhance-help" tabIndex="0" aria-label={t.promptEnhanceHelp}>
                     ?
                     <span className="prompt-enhance-tooltip" role="tooltip">{t.promptEnhanceHelp}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className={`prompt-enhance-toggle ${deepUnderstand ? 'is-active' : ''}`}
+                    aria-pressed={deepUnderstand}
+                    onClick={() => {
+                      setDeepUnderstand((value) => !value);
+                      setEnhancePrompt(false);
+                    }}
+                  >
+                    <span>{t.deepUnderstand}</span>
+                    <span className="prompt-enhance-track" aria-hidden="true">
+                      <span className="prompt-enhance-knob" />
+                    </span>
+                  </button>
+                  <span className="prompt-enhance-help" tabIndex="0" aria-label={t.deepUnderstandHelp}>
+                    ?
+                    <span className="prompt-enhance-tooltip" role="tooltip">{t.deepUnderstandHelp}</span>
                   </span>
                 </div>
               ) : null}
