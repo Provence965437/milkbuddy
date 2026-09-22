@@ -399,14 +399,24 @@ func CreditCost(req CreateRequest) (int, error) {
 
 func dimensions(ratio string) (int, int) {
 	switch ratio {
+	case "768x1024", "3:4":
+		return 768, 1024
+	case "768x1152", "2:3":
+		return 768, 1152
+	case "1024x768":
+		return 1024, 768
 	case "3:2":
 		return 1024, 688
-	case "4:5":
+	case "832x1024", "4:5":
 		return 832, 1024
-	case "21:9":
+	case "1024x1024", "1:1":
+		return 1024, 1024
+	case "1280x544", "21:9":
 		return 1280, 544
-	default:
+	case "1024x576", "16:9":
 		return 1024, 576
+	default:
+		return 832, 1024
 	}
 }
 

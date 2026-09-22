@@ -213,6 +213,21 @@ func TestEnhancementAndDeepUnderstandingAreMutuallyExclusive(t *testing.T) {
 	}
 }
 
+func TestPixelDimensionPresets(t *testing.T) {
+	cases := map[string][2]int{
+		"832x1024":  {832, 1024},
+		"768x1024":  {768, 1024},
+		"768x1152":  {768, 1152},
+		"1024x1024": {1024, 1024},
+	}
+	for preset, want := range cases {
+		width, height := dimensions(preset)
+		if width != want[0] || height != want[1] {
+			t.Fatalf("%s: expected %dx%d, got %dx%d", preset, want[0], want[1], width, height)
+		}
+	}
+}
+
 func input(t *testing.T, workflow map[string]interface{}, nodeID, key string) interface{} {
 	t.Helper()
 	node, ok := workflow[nodeID].(map[string]interface{})

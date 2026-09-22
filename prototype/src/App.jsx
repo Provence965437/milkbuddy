@@ -392,7 +392,7 @@ export function App() {
   const [prompt, setPrompt] = useState('');
   const [enhancePrompt, setEnhancePrompt] = useState(false);
   const [deepUnderstand, setDeepUnderstand] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [aspectRatio, setAspectRatio] = useState('832x1024');
   const [quality, setQuality] = useState('High');
   const [imageCount, setImageCount] = useState('1');
   const [seedMode, setSeedMode] = useState('random');
@@ -1113,10 +1113,13 @@ export function App() {
               <label>
                 <span>{t.aspectRatio}</span>
                 <select value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value)}>
-                  <option>16:9</option>
-                  <option>3:2</option>
-                  <option>4:5</option>
-                  <option>21:9</option>
+                  <option value="832x1024">832 × 1024</option>
+                  <option value="768x1024">768 × 1024</option>
+                  <option value="768x1152">768 × 1152</option>
+                  <option value="1024x1024">1024 × 1024</option>
+                  <option value="1024x768">1024 × 768</option>
+                  <option value="1024x576">1024 × 576</option>
+                  <option value="1280x544">1280 × 544</option>
                 </select>
               </label>
 
